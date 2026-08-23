@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Civic Twin AI — City Intelligence</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+
+    <div class="logo">
+      <div class="logo-icon">🏙️</div>
+      <div>
+        <h2>Civic Twin</h2>
+        <span>City Intelligence AI</span>
+      </div>
+    </div>
+
+    <nav>
+      <a href="#" class="active" data-nav="dashboard">
+        <span>📊</span> Dashboard
+      </a>
+
+      <a href="#" data-nav="map">
+        <span>🗺️</span> City Map
+      </a>
+
+      <a href="#" data-nav="alerts">
+        <span>⚠️</span> Alerts
+        <b class="badge" id="alert-badge">0</b>
+      </a>
+
+      <a href="#" data-nav="infrastructure">
+        <span>🏗️</span> Infrastructure
+      </a>
+
+      <a href="#" data-nav="reports">
+        <span>📝</span> Citizen Reports
+      </a>
+
+      <a href="#" data-nav="analytics">
+        <span>📈</span> Analytics
+      </a>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="system-status">
+        <div class="status-dot" id="status-dot"></div>
+        <div>
+          <strong id="status-text">Connecting…</strong>
+          <small id="status-time">—</small>
+        </div>
+      </div>
+
+      <div class="profile">
+        <div class="avatar">AD</div>
+        <div>
+          <strong>Admin Dashboard</strong>
+          <small>City Operations</small>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Header -->
+    <header class="header">
+
+      <div>
+        <p class="eyebrow" id="today-label">TODAY</p>
+        <h1>Good evening, City Admin 👋</h1>
+        <p class="subtitle">
+          Your city intelligence overview is ready.
+        </p>
+      </div>
+
+      <div class="header-actions">
+        <button class="icon-btn" id="refresh-btn" title="Refresh now">🔄</button>
+        <button class="city-selector" id="city-selector">
+          <span id="city-name">Hyderabad</span>
+          <span>▾</span>
+        </button>
+      </div>
+
+    </header>
+
+
+    <!-- AI Search -->
+    <section class="ai-box">
+
+      <div class="ai-icon">🤖</div>
+
+      <div class="ai-content">
+        <div class="ai-title">
+          <strong>Ask Civic Twin</strong>
+          <span>AI CITY COPILOT</span>
+        </div>
+
+        <p>
+          Ask anything about your city — traffic, water, garbage,
+          flooding, infrastructure and more.
+        </p>
+
+        <div class="search-box">
+          <input
+            type="text"
+            id="ai-input"
+            placeholder="e.g. Which areas have the highest traffic right now?"
+          >
+          <button id="ai-ask-btn">Ask AI →</button>
+        </div>
+
+        <div class="suggestions">
+          <button data-q="Why is traffic increasing?">🚦 Why is traffic increasing?</button>
+          <button data-q="Flood risk areas">🌧️ Flood risk areas</button>
+          <button data-q="Garbage complaints">🗑️ Garbage complaints</button>
+          <button data-q="Emergency hotspots">🔥 Emergency hotspots</button>
+        </div>
+
+        <div id="ai-answer" class="ai-answer" hidden></div>
+      </div>
+
+    </section>
+
+
+    <!-- Stats -->
+    <section class="stats">
+
+      <div class="stat-card">
+        <div class="stat-top">
+          <span>Traffic</span>
+          <div class="stat-icon red">🚗</div>
+        </div>
+
+        <h2 id="stat-traffic">—</h2>
+
+        <div class="progress">
+          <div class="progress-red" id="progress-traffic"></div>
+        </div>
+
+        <p><span class="danger" id="delta-traffic">—</span> congestion today</p>
+      </div>
+
+
+      <div class="stat-card">
+        <div class="stat-top">
+          <span>Citizen Reports</span>
+          <div class="stat-icon orange">!</div>
+        </div>
+
+        <h2 id="stat-reports-total">—</h2>
+
+        <div class="progress">
+          <div class="progress-orange" id="progress-reports"></div>
+        </div>
+
+        <p><span class="warning" id="stat-reports-unresolved">—</span> unresolved</p>
+      </div>
+
+
+      <div class="stat-card">
+        <div class="stat-top">
+          <span>Water Network</span>
+          <div class="stat-icon blue">💧</div>
+        </div>
+
+        <h2 id="stat-water">—</h2>
+
+        <div class="progress">
+          <div class="progress-blue" id="progress-water"></div>
+        </div>
+
+        <p><span class="success" id="delta-water">—</span> system health</p>
+      </div>
+
+
+      <div class="stat-card">
+        <div class="stat-top">
+          <span>City Health</span>
+          <div class="stat-icon green">✔</div>
+        </div>
+
+        <h2 id="stat-health">—</h2>
+
+        <div class="progress">
+          <div class="progress-green" id="progress-health"></div>
+        </div>
+
+        <p><span class="success" id="health-label">—</span> overall condition</p>
+      </div>
+
+    </section>
+
+
+    <!-- Main Grid -->
+    <section class="dashboard-grid">
+
+
+      <!-- Map -->
+      <div class="map-card">
+
+        <div class="card-header">
+          <div>
+            <h3>Live City Map</h3>
+            <p>Real-time civic intelligence</p>
+          </div>
+
+          <div class="map-controls">
+            <button class="selected" data-filter="all">All</button>
+            <button data-filter="traffic">Traffic</button>
+            <button data-filter="water">Water</button>
+            <button data-filter="waste">Waste</button>
+          </div>
+        </div>
+
+        <div id="map" class="map"></div>
+
+        <div class="map-footer">
+          <div>
+            <span class="legend red"></span>
+            Traffic
+          </div>
+
+          <div>
+            <span class="legend orange"></span>
+            Citizen Reports
+          </div>
+
+          <div>
+            <span class="legend blue"></span>
+            Water
+          </div>
+
+          <div>
+            <span class="legend green"></span>
+            Healthy Zone
+          </div>
+        </div>
+
+      </div>
+
+
+      <!-- AI Insights -->
+      <div class="insights-card">
+
+        <div class="card-header">
+          <div>
+            <h3>AI Insights</h3>
+            <p>What Civic Twin noticed</p>
+          </div>
+
+          <span class="live">LIVE</span>
+        </div>
+
+        <div id="insights-list"></div>
+
+        <button class="view-all" id="view-all-insights">
+          View all insights →
+        </button>
+
+      </div>
+
+    </section>
+
+
+    <!-- Bottom section -->
+    <section class="bottom-grid">
+
+      <!-- City Health -->
+      <div class="health-card">
+
+        <div class="card-header">
+          <div>
+            <h3>City Health Score</h3>
+            <p>Based on 24 civic indicators</p>
+          </div>
+
+          <strong class="score" id="score-overall">—</strong>
+        </div>
+
+        <div class="health-bars" id="health-bars"></div>
+
+      </div>
+
+
+      <!-- Recommended actions -->
+      <div class="actions-card">
+
+        <div class="card-header">
+          <div>
+            <h3>Recommended Actions</h3>
+            <p>AI-generated priorities</p>
+          </div>
+        </div>
+
+        <div id="actions-list"></div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Citizen report modal -->
+  <div id="report-modal" class="modal-overlay" hidden>
+    <div class="modal">
+      <h3>New Citizen Report</h3>
+      <label>Category
+        <select id="report-category">
+          <option>Traffic</option>
+          <option>Water</option>
+          <option>Waste</option>
+          <option>Infrastructure</option>
+          <option>Other</option>
+        </select>
+      </label>
+      <label>Location
+        <input type="text" id="report-location" placeholder="e.g. Ward 18, Begumpet">
+      </label>
+      <label>Description
+        <textarea id="report-description" rows="3" placeholder="Describe the issue"></textarea>
+      </label>
+      <div class="modal-actions">
+        <button id="report-cancel" class="btn-secondary">Cancel</button>
+        <button id="report-submit" class="btn-primary">Submit Report</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
