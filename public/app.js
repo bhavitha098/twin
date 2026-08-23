@@ -2,6 +2,12 @@ const API_BASE = '';
 
 const el = (id) => document.getElementById(id);
 
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = String(str ?? '');
+  return div.innerHTML;
+}
+
 const state = {
   filter: 'all',
   markers: {},
@@ -206,8 +212,9 @@ function applyFilter(filter) {
 // ---------- AI ----------
 async function askAI(question) {
   const answerBox = el('ai-answer');
+  const safeQuestion = escapeHtml(question);
   answerBox.hidden = false;
-  answerBox.innerHTML = `<span class="q">${question}</span>Thinking…`;
+  answerBox.innerHTML = `<span class="q">${safeQuestion}</span>Thinking…`;
   try {
     const res = await fetch(`${API_BASE}/api/ai/ask`, {
       method: 'POST',
@@ -215,9 +222,9 @@ async function askAI(question) {
       body: JSON.stringify({ question }),
     });
     const data = await res.json();
-    answerBox.innerHTML = `<span class="q">${question}</span>${data.answer}`;
+    answerBox.innerHTML = `<span class="q">${safeQuestion}</span>${escapeHtml(data.answer)}`;
   } catch (e) {
-    answerBox.innerHTML = `<span class="q">${question}</span>Could not reach the Civic Twin backend. Is the server running?`;
+    answerBox.innerHTML = `<span class="q">${safeQuestion}</span>Could not reach the Civic Twin backend. Is the server running?`;
   }
 }
 
