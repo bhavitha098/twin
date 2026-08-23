@@ -1,0 +1,16 @@
+{
+  "name": "civic-twin-ai",
+  "version": "1.0.0",
+  "description": "Civic Twin AI - City Intelligence Dashboard (hackathon build)",
+  "main": "server/index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
