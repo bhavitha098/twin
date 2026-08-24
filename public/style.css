@@ -1131,7 +1131,10 @@ nav a span {
   background: #000a;
   display: grid;
   place-items: center;
-  z-index: 100;
+  /* Leaflet's internal panes (tiles/markers/popups) use z-index up to 700
+     and .map-card doesn't establish its own stacking context, so anything
+     lower than that here would let the map render on top when scrolled. */
+  z-index: 1000;
 }
 
 .modal-overlay[hidden] {
