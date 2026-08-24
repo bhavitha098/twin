@@ -574,14 +574,36 @@ async function fetchAirQuality(lat, lng) {
 }
 
 // A standard "typical urban traffic by hour" pattern, not a live sensor —
-// there is no free live traffic-sensor API for any city. Used only as a
-// baseline, then adjusted by real citizen Traffic reports below.
+// used only when TomTom is unavailable (no key, quota exhausted, network
+// error), then adjusted by real citizen Traffic reports below.
 function trafficBaselineForHour(hour) {
   if (hour >= 8 && hour <= 10) return 78;   // morning rush
   if (hour >= 17 && hour <= 20) return 82;  // evening rush
   if (hour >= 11 && hour <= 16) return 48;  // midday
   if (hour >= 21 && hour <= 23) return 30;  // evening wind-down
   return 15;                                // late night / early morning
+}
+
+// Real live traffic congestion, per road segment, from TomTom's Traffic
+// Flow API — the actual current-speed-vs-free-flow-speed ratio for the
+// exact coordinates. Returns null (not a fake number) if there's no key,
+// the quota is exhausted, or the request fails for any reason — callers
+// fall back to the time-of-day pattern in that case.
+async function fetchTrafficFlow(lat, lng) {
+  const key = window.CIVIC_TWIN_CONFIG?.tomtomApiKey;
+  if (!key) return null;
+  try {
+    const url = `https://api.tomtom.com/traffic/services/4/flowSegmentData/absolute/10/json?point=${lat},${lng}&key=${key}`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const seg = data.flowSegmentData;
+    if (!seg || !seg.freeFlowSpeed) return null;
+    return clamp(Math.round((1 - seg.currentSpeed / seg.freeFlowSpeed) * 100), 0, 100);
+  } catch (e) {
+    console.warn('[sync] TomTom fetch failed, falling back to time-of-day pattern:', e.message);
+    return null;
+  }
 }
 
 async function recentReportCount(category, hours) {
@@ -611,17 +633,25 @@ async function openActionExists(title) {
 }
 
 async function syncRealData() {
-  const [{ data: statsRows }, weather, air, trafficReports, wasteReports] = await Promise.all([
+  const trafficHotspotIds = Object.entries(HOTSPOT_COORDS).filter(([, m]) => m.type === 'traffic').map(([id]) => id);
+  const [{ data: statsRows }, weather, air, trafficReports, wasteReports, ...tomtomReadings] = await Promise.all([
     supabase.from('stats').select('key, value'),
     fetchWeather(CITY_CENTER.lat, CITY_CENTER.lng),
     fetchAirQuality(CITY_CENTER.lat, CITY_CENTER.lng),
     recentReportCount('Traffic', 24),
     recentReportCount('Waste', 24),
+    ...trafficHotspotIds.map((id) => fetchTrafficFlow(HOTSPOT_COORDS[id].lat, HOTSPOT_COORDS[id].lng)),
   ]);
   const stats = Object.fromEntries((statsRows || []).map((r) => [r.key, r.value]));
   if (!stats.traffic) return;
 
-  const trafficPct = clamp(trafficBaselineForHour(weather.localHour) + Math.min(trafficReports * 3, 20), 5, 98);
+  const tomtomByHotspot = Object.fromEntries(trafficHotspotIds.map((id, i) => [id, tomtomReadings[i]]));
+  const liveReadings = Object.values(tomtomByHotspot).filter((v) => v !== null);
+  const heuristicPct = clamp(trafficBaselineForHour(weather.localHour) + Math.min(trafficReports * 3, 20), 5, 98);
+  const trafficPct = liveReadings.length
+    ? clamp(Math.round(liveReadings.reduce((a, b) => a + b, 0) / liveReadings.length), 0, 100)
+    : heuristicPct;
+
   const waterHealth = clamp(100 - weather.rainMm * 8 - weather.rainProbPct * 0.15, 55, 100);
   const environmentScore = clamp(Math.round(100 - air.aqi * 0.5), 0, 100);
   const wasteManagement = clamp(Math.round(100 - wasteReports * 12), 20, 100);
@@ -641,7 +671,10 @@ async function syncRealData() {
 
   const hotspotUpdates = Object.entries(HOTSPOT_COORDS).map(([id, meta]) => {
     if (meta.type === 'traffic') {
-      return { id, intensity: trafficPct / 100, detail: `${Math.round(trafficPct)}% congestion (time-of-day pattern + ${trafficReports} recent report${trafficReports === 1 ? '' : 's'})` };
+      const live = tomtomByHotspot[id];
+      const pct = live !== null && live !== undefined ? live : heuristicPct;
+      const source = live !== null && live !== undefined ? 'TomTom live traffic' : `time-of-day pattern + ${trafficReports} recent report${trafficReports === 1 ? '' : 's'}`;
+      return { id, intensity: pct / 100, detail: `${Math.round(pct)}% congestion (${source})` };
     }
     if (meta.type === 'water') {
       return { id, intensity: clamp(weather.rainProbPct / 100, 0.05, 1), detail: `${Math.round(weather.rainProbPct)}% real rain probability this hour` };
