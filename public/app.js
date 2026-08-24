@@ -264,6 +264,34 @@ function closeAlertsModal() {
 const STATUS_LABEL = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved' };
 const STATUS_ORDER = ['open', 'in_progress', 'resolved'];
 
+// Heuristic report-quality score: a rule-based check over fields the report
+// actually has (photo, precise pin, real detail, a recognizable place),
+// not an ML "is this person real" claim — that would be an overclaim we
+// can't back up with a zero-backend, no-auth app. Useful for triage: it's
+// exactly what would have flagged the "Hi" / "nope" junk test entries as
+// low quality before they were manually caught.
+function reportQualityScore(r, knownZoneLabels) {
+  let score = 0;
+  const signals = [];
+  if (r.photo_url) { score += 30; signals.push('photo attached'); }
+  if (r.lat != null && r.lng != null) { score += 25; signals.push('precise map pin'); }
+  const descLen = (r.description || '').trim().length;
+  if (descLen >= 20) { score += 25; signals.push('detailed description'); }
+  const loc = (r.location || '').trim().toLowerCase();
+  const matchesZone = loc.length > 2 && knownZoneLabels.some((label) => {
+    const l = label.toLowerCase();
+    return loc.includes(l) || l.includes(loc);
+  });
+  if (matchesZone) { score += 20; signals.push('matches a tracked city zone'); }
+  return { score, signals };
+}
+
+function qualityBand(score) {
+  if (score >= 70) return { cls: 'quality-high', label: 'High confidence' };
+  if (score >= 40) return { cls: 'quality-med', label: 'Medium confidence' };
+  return { cls: 'quality-low', label: 'Needs review' };
+}
+
 async function renderManageReports() {
   const list = el('manage-reports-list');
   list.innerHTML = '<div class="empty-state">Loading…</div>';
@@ -276,10 +304,20 @@ async function renderManageReports() {
     list.innerHTML = '<div class="empty-state">No citizen reports yet.</div>';
     return;
   }
-  list.innerHTML = data.map((r) => `
+  const knownZoneLabels = (state.latestSummary?.hotspots || []).map((h) => h.label);
+  list.innerHTML = data.map((r) => {
+    const { score, signals } = reportQualityScore(r, knownZoneLabels);
+    const band = qualityBand(score);
+    const tip = signals.length ? `Based on: ${signals.join(', ')}` : 'No photo, precise pin, detail, or recognized zone — likely low-effort or test data';
+    return `
     <div class="report-row" data-id="${r.id}">
       <div class="report-content">
-        <span class="status-pill ${r.status}">${STATUS_LABEL[r.status] || r.status}</span>
+        <div class="report-badges">
+          <span class="status-pill ${r.status}">${STATUS_LABEL[r.status] || r.status}</span>
+          <span class="quality-badge ${band.cls}" tabindex="0" data-tip="${escapeHtml(tip)}">${score}/100 · ${band.label}</span>
+          <button class="ai-verify-btn" data-verify="${r.id}" type="button">✦ Check with AI</button>
+          <span class="ai-verify-result" data-verify-result="${r.id}"></span>
+        </div>
         <p style="margin-top:6px"><strong>${escapeHtml(r.category)}</strong> — ${escapeHtml(r.location)}</p>
         <p>${escapeHtml(r.description)}</p>
         <span class="report-meta">${timeAgo(r.created_at)}</span>
@@ -290,7 +328,31 @@ async function renderManageReports() {
         </select>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
+
+  list.querySelectorAll('[data-verify]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-verify');
+      const r = data.find((row) => String(row.id) === id);
+      const resultEl = list.querySelector(`[data-verify-result="${id}"]`);
+      btn.disabled = true;
+      btn.textContent = 'Asking Gemini…';
+      const verdict = await callAI('verify-report', {
+        report: { category: r.category, location: r.location, description: r.description, photo_url: r.photo_url },
+      });
+      if (!verdict || typeof verdict.confidence !== 'number') {
+        btn.disabled = false;
+        btn.textContent = '✦ Check with AI';
+        resultEl.textContent = 'AI check unavailable right now';
+        resultEl.className = 'ai-verify-result ai-verify-fail';
+        return;
+      }
+      btn.hidden = true;
+      resultEl.className = `ai-verify-result ${verdict.plausible ? 'ai-verify-ok' : 'ai-verify-flag'}`;
+      resultEl.textContent = `✦ AI: ${verdict.plausible ? 'Plausible' : 'Flagged'} (${verdict.confidence}%) — ${verdict.reason}`;
+    });
+  });
 
   list.querySelectorAll('.status-select').forEach((sel) => {
     sel.addEventListener('change', async () => {

@@ -18,7 +18,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const { mode, question, trends, context } = req.body || {};
+  const { mode, question, trends, context, report } = req.body || {};
 
   let systemPrompt;
   let userPrompt;
@@ -26,6 +26,9 @@ module.exports = async (req, res) => {
   if (mode === 'insight') {
     systemPrompt = 'You are Civic Twin\'s analyst for Hyderabad. Given 6-hour trend data and the current live snapshot, produce exactly ONE actionable insight a city admin has not already seen. Respond with ONLY valid JSON, no markdown fences, no commentary: {"icon": "traffic|water|waste|general", "category": "traffic|water|waste|general", "title": "<max 8 words>", "body": "<max 2 sentences, cite real numbers from the data>"}.';
     userPrompt = `TREND DATA (last 6h):\n${JSON.stringify(trends)}\n\nCURRENT SNAPSHOT:\n${JSON.stringify(context)}\n\nGenerate the insight now.`;
+  } else if (mode === 'verify-report') {
+    systemPrompt = 'You are a triage assistant for a city civic-complaints system in Hyderabad, India. Given one citizen report (category, location, description), judge whether it plausibly describes a real, specific civic issue at a real place versus being vague filler, spam, or test input (e.g. "hi", "test", a report with no real detail, or a location/category mismatch). Respond with ONLY valid JSON, no markdown fences: {"plausible": true|false, "confidence": <0-100 integer, your confidence that this is a genuine, specific report>, "reason": "<max 20 words, plain language>"}.';
+    userPrompt = `REPORT:\ncategory: ${report?.category}\nlocation: ${report?.location}\ndescription: ${report?.description}\nhas_photo: ${!!report?.photo_url}\n\nAssess it now.`;
   } else {
     systemPrompt = `You are Civic Twin, an AI city-intelligence copilot for Hyderabad. Answer the admin's question using ONLY the live city data JSON below — be specific, cite real numbers, keep it to 2-3 sentences, plain text, no markdown. If the data does not cover the question, say so briefly rather than inventing numbers.\n\nLIVE CITY DATA:\n${JSON.stringify(context)}`;
     userPrompt = question || '';
@@ -59,7 +62,7 @@ module.exports = async (req, res) => {
     const text = data.candidates?.[0]?.content?.parts?.find((p) => p.text)?.text;
     if (!text) throw new Error('Empty response from Gemini');
 
-    if (mode === 'insight') {
+    if (mode === 'insight' || mode === 'verify-report') {
       const cleaned = text.trim().replace(/^```json?\s*|\s*```$/g, '');
       const parsed = JSON.parse(cleaned);
       res.status(200).json(parsed);
