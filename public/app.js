@@ -522,108 +522,205 @@ async function submitReport() {
 // might do nothing interesting at the moment you're on stage.
 
 function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
-function randomWalk(value, step, min, max) { return clamp(value + (Math.random() * 2 - 1) * step, min, max); }
 
-function hotspotDetail(type, intensity) {
-  const pct = Math.round(intensity * 100);
-  if (type === 'traffic') return `${pct}% congestion`;
-  if (type === 'water') {
-    if (intensity >= 0.6) return 'High flood-risk probability';
-    if (intensity >= 0.3) return 'Moderate flood-risk probability';
-    return 'Low risk, monitoring';
-  }
-  if (type === 'waste') return `${pct}% above normal complaint volume`;
-  return `${pct}% intensity`;
+// ---------- Real data sync ----------
+// No mock generator. Every number written here comes from either a real
+// public API (Open-Meteo — weather and air quality, both free and keyless)
+// or real citizen-submitted reports already in Supabase. The two exceptions
+// are documented inline: a time-of-day traffic baseline (a standard urban
+// heuristic, not a live sensor feed — see TRAFFIC below) and the
+// Infrastructure/Public Safety sub-scores, which have no free public API for
+// any city and are deliberately left static rather than faked into motion.
+
+const CITY_CENTER = { lat: 17.4239, lng: 78.4738 };
+const HOTSPOT_COORDS = {
+  'hs-1': { lat: 17.4483, lng: 78.3915, type: 'traffic' }, // NH-65
+  'hs-2': { lat: 17.4239, lng: 78.4738, type: 'water' },   // Flood Risk Zone
+  'hs-3': { lat: 17.3850, lng: 78.4867, type: 'waste' },   // Ward 18
+  'hs-4': { lat: 17.4399, lng: 78.4482, type: 'traffic' }, // Begumpet Junction
+  'hs-5': { lat: 17.4239, lng: 78.4738, type: 'water' },   // Hussain Sagar
+};
+
+async function fetchWeather(lat, lng) {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=precipitation,rain,weather_code&hourly=precipitation_probability&timezone=Asia%2FKolkata&forecast_days=1`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Open-Meteo weather ${res.status}`);
+  const data = await res.json();
+  const nowHour = new Date().getHours();
+  const probs = data.hourly?.precipitation_probability || [];
+  return {
+    rainMm: data.current?.precipitation ?? 0,
+    rainProbPct: probs[nowHour] ?? probs[0] ?? 0,
+    localHour: new Date(data.current.time).getHours(),
+  };
 }
 
-const INSIGHT_TEMPLATES = [
-  { icon: '🚦', category: 'traffic', title: 'Traffic pattern shift', body: 'Congestion near NH-65 moved {pct}% versus the last hour average.' },
-  { icon: '🌧️', category: 'water', title: 'Rainfall update', body: 'Flood risk model updated for low-lying zones, current confidence {pct}%.' },
-  { icon: '🗑️', category: 'waste', title: 'Collection route update', body: 'Ward 18 complaint volume changed by {pct}% in the last cycle.' },
-];
+async function fetchAirQuality(lat, lng) {
+  const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lng}&current=us_aqi`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Open-Meteo air quality ${res.status}`);
+  const data = await res.json();
+  return { aqi: data.current?.us_aqi ?? 60 };
+}
 
-const ALERT_MESSAGES = [
-  { severity: 'high', message: 'New congestion spike detected on ring road' },
-  { severity: 'medium', message: 'Sensor reports rising water levels' },
-  { severity: 'medium', message: 'Spike in citizen complaints in a ward' },
-  { severity: 'low', message: 'Air quality index degraded in industrial zone' },
-];
+// A standard "typical urban traffic by hour" pattern, not a live sensor —
+// there is no free live traffic-sensor API for any city. Used only as a
+// baseline, then adjusted by real citizen Traffic reports below.
+function trafficBaselineForHour(hour) {
+  if (hour >= 8 && hour <= 10) return 78;   // morning rush
+  if (hour >= 17 && hour <= 20) return 82;  // evening rush
+  if (hour >= 11 && hour <= 16) return 48;  // midday
+  if (hour >= 21 && hour <= 23) return 30;  // evening wind-down
+  return 15;                                // late night / early morning
+}
 
-const ACTION_TEMPLATES = [
-  { priority: 'high', title: 'Deploy traffic management team', detail: 'Congestion on a major corridor is rapidly increasing.' },
-  { priority: 'medium', title: 'Inspect drainage in flood-risk zone', detail: 'Flood probability model is trending upward.' },
-  { priority: 'medium', title: 'Dispatch waste collection crew', detail: 'Complaint volume is above normal in one ward.' },
-  { priority: 'low', title: 'Schedule routine infrastructure audit', detail: 'Due for periodic review this cycle.' },
-];
+async function recentReportCount(category, hours) {
+  const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+  const { count } = await supabase
+    .from('reports').select('id', { count: 'exact' }).eq('category', category).gte('created_at', since).limit(1);
+  return count || 0;
+}
 
-async function simulateOneTick() {
-  const { data: statsRows } = await supabase.from('stats').select('key, value');
+async function recentInsightExists(category, hours) {
+  const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+  const { count } = await supabase
+    .from('insights').select('id', { count: 'exact' }).eq('category', category).gte('created_at', since).limit(1);
+  return (count || 0) > 0;
+}
+
+async function unresolvedAlertExists(message) {
+  const { count } = await supabase
+    .from('alerts').select('id', { count: 'exact' }).eq('message', message).eq('resolved', false).limit(1);
+  return (count || 0) > 0;
+}
+
+async function openActionExists(title) {
+  const { count } = await supabase
+    .from('actions').select('id', { count: 'exact' }).eq('title', title).eq('dismissed', false).limit(1);
+  return (count || 0) > 0;
+}
+
+async function syncRealData() {
+  const [{ data: statsRows }, weather, air, trafficReports, wasteReports] = await Promise.all([
+    supabase.from('stats').select('key, value'),
+    fetchWeather(CITY_CENTER.lat, CITY_CENTER.lng),
+    fetchAirQuality(CITY_CENTER.lat, CITY_CENTER.lng),
+    recentReportCount('Traffic', 24),
+    recentReportCount('Waste', 24),
+  ]);
   const stats = Object.fromEntries((statsRows || []).map((r) => [r.key, r.value]));
   if (!stats.traffic) return;
 
+  const trafficPct = clamp(trafficBaselineForHour(weather.localHour) + Math.min(trafficReports * 3, 20), 5, 98);
+  const waterHealth = clamp(100 - weather.rainMm * 8 - weather.rainProbPct * 0.15, 55, 100);
+  const environmentScore = clamp(Math.round(100 - air.aqi * 0.5), 0, 100);
+  const cityHealth = clamp((100 - trafficPct) * 0.3 + waterHealth * 0.3 + environmentScore * 0.4, 0, 100);
+
   const updates = [
-    ['traffic', randomWalk(stats.traffic, 3, 20, 98)],
-    ['water_health', randomWalk(stats.water_health, 0.6, 70, 99.9)],
-    ['city_health', randomWalk(stats.city_health, 1, 55, 99)],
-    ['reports_unresolved', Math.round(randomWalk(stats.reports_unresolved, 4, 30, 400))],
+    ['traffic', trafficPct],
+    ['water_health', waterHealth],
+    ['city_health', cityHealth],
   ];
   await Promise.all(updates.map(([key, next]) =>
     supabase.from('stats').update({ value: next, delta: +(next - stats[key]).toFixed(1) }).eq('key', key)
   ));
-  await supabase.from('stat_history').insert(updates.map(([key, value]) => ({ key, value })));
+  await supabase.from('stat_history').insert([
+    ...updates.map(([key, value]) => ({ key, value })),
+    { key: 'reports_unresolved', value: stats.reports_unresolved },
+  ]);
 
-  if (Math.random() < 0.3) {
-    const nextTotal = stats.reports_total + Math.round(Math.random() * 5);
-    await supabase.from('stats').update({ value: nextTotal, delta: nextTotal - stats.reports_total }).eq('key', 'reports_total');
-  }
+  await supabase.from('health_scores').update({ score: environmentScore }).eq('category', 'Environment');
+  await supabase.from('health_scores').update({ score: Math.round(100 - trafficPct) }).eq('category', 'Transport');
 
-  const { data: hotspots } = await supabase.from('hotspots').select('id, type, intensity');
-  if (hotspots) {
-    await Promise.all(hotspots.map((hs) => {
-      const next = randomWalk(hs.intensity, 0.08, 0.1, 1);
-      return supabase.from('hotspots').update({ intensity: next, detail: hotspotDetail(hs.type, next) }).eq('id', hs.id);
-    }));
-  }
+  const hotspotUpdates = Object.entries(HOTSPOT_COORDS).map(([id, meta]) => {
+    if (meta.type === 'traffic') {
+      return { id, intensity: trafficPct / 100, detail: `${Math.round(trafficPct)}% congestion (time-of-day pattern + ${trafficReports} recent report${trafficReports === 1 ? '' : 's'})` };
+    }
+    if (meta.type === 'water') {
+      return { id, intensity: clamp(weather.rainProbPct / 100, 0.05, 1), detail: `${Math.round(weather.rainProbPct)}% real rain probability this hour` };
+    }
+    return { id, intensity: clamp(0.1 + wasteReports * 0.15, 0.1, 1), detail: `${wasteReports} real waste report${wasteReports === 1 ? '' : 's'} in the last 24h` };
+  });
+  await Promise.all(hotspotUpdates.map((h) => supabase.from('hotspots').update({ intensity: h.intensity, detail: h.detail }).eq('id', h.id)));
 
-  if (Math.random() < 0.4) {
-    const t = INSIGHT_TEMPLATES[Math.floor(Math.random() * INSIGHT_TEMPLATES.length)];
-    const pct = Math.floor(Math.random() * 40) + 5;
+  // Real-threshold-triggered insights/alerts — only when the real number
+  // actually crosses a line, and only once per few hours per category, so a
+  // 5-minute sync loop doesn't spam duplicates.
+  if (weather.rainProbPct >= 60 && !(await recentInsightExists('water', 3))) {
     await supabase.from('insights').insert({
-      icon: t.icon, category: t.category, title: t.title, body: t.body.replace('{pct}', pct),
+      icon: '🌧️', category: 'water', title: 'Real rain probability elevated',
+      body: `Open-Meteo puts this hour's rain probability at ${Math.round(weather.rainProbPct)}% near the city's flood-risk zones.`,
+    });
+  }
+  if (trafficPct >= 75 && !(await recentInsightExists('traffic', 3))) {
+    await supabase.from('insights').insert({
+      icon: '🚦', category: 'traffic', title: 'Traffic pattern crossing rush-hour levels',
+      body: `Estimated congestion is at ${Math.round(trafficPct)}% right now (time-of-day pattern${trafficReports ? ` + ${trafficReports} real citizen reports` : ''}).`,
+    });
+  }
+  if (wasteReports >= 3 && !(await recentInsightExists('waste', 3))) {
+    await supabase.from('insights').insert({
+      icon: '🗑️', category: 'waste', title: 'Real waste-report volume climbing',
+      body: `${wasteReports} citizens have filed waste reports in the last 24 hours.`,
     });
   }
 
-  if (Math.random() < 0.15) {
-    const { count } = await supabase.from('alerts').select('id', { count: 'exact' }).eq('resolved', false).limit(1);
-    if ((count || 0) < 8) {
-      const a = ALERT_MESSAGES[Math.floor(Math.random() * ALERT_MESSAGES.length)];
-      await supabase.from('alerts').insert(a);
-    }
+  if (weather.rainProbPct >= 80) {
+    const msg = 'High real rain probability — flood risk elevated';
+    if (!(await unresolvedAlertExists(msg))) await supabase.from('alerts').insert({ severity: 'high', message: msg });
+  }
+  if (trafficPct >= 85) {
+    const msg = 'Real-time congestion estimate above 85%';
+    if (!(await unresolvedAlertExists(msg))) await supabase.from('alerts').insert({ severity: 'high', message: msg });
+  }
+  if (air.aqi >= 100) {
+    const msg = `Air quality index at ${Math.round(air.aqi)} (real reading) — unhealthy for sensitive groups`;
+    if (!(await unresolvedAlertExists(msg))) await supabase.from('alerts').insert({ severity: 'medium', message: msg });
   }
 
-  if (Math.random() < 0.15) {
-    const { count } = await supabase.from('actions').select('id', { count: 'exact' }).eq('dismissed', false).limit(1);
-    if ((count || 0) < 5) {
-      const a = ACTION_TEMPLATES[Math.floor(Math.random() * ACTION_TEMPLATES.length)];
-      await supabase.from('actions').insert(a);
+  // Recommended Actions, also real-condition-triggered rather than random,
+  // so the panel doesn't sit permanently empty once someone dismisses the
+  // seed rows — capped so repeated syncs can't spiral.
+  const { count: openActionCount } = await supabase.from('actions').select('id', { count: 'exact' }).eq('dismissed', false).limit(1);
+  if ((openActionCount || 0) < 6) {
+    if (trafficPct >= 75) {
+      const title = 'Deploy traffic management team';
+      if (!(await openActionExists(title))) {
+        await supabase.from('actions').insert({ priority: 'high', title, detail: `Estimated congestion is at ${Math.round(trafficPct)}% right now.` });
+      }
+    }
+    if (weather.rainProbPct >= 60) {
+      const title = 'Inspect drainage in flood-risk zones';
+      if (!(await openActionExists(title))) {
+        await supabase.from('actions').insert({ priority: 'medium', title, detail: `Real rain probability is ${Math.round(weather.rainProbPct)}% this hour.` });
+      }
+    }
+    if (wasteReports >= 3) {
+      const title = 'Dispatch waste collection crew to Ward 18';
+      if (!(await openActionExists(title))) {
+        await supabase.from('actions').insert({ priority: 'medium', title, detail: `${wasteReports} real waste reports filed in the last 24h.` });
+      }
+    }
+    if (air.aqi >= 100) {
+      const title = 'Issue an air quality advisory';
+      if (!(await openActionExists(title))) {
+        await supabase.from('actions').insert({ priority: 'low', title, detail: `Air quality index reading: ${Math.round(air.aqi)}.` });
+      }
     }
   }
 }
 
-async function runSimulate() {
+async function runSync(isManual) {
   const btn = el('simulate-btn');
-  btn.disabled = true;
-  btn.textContent = '🎲 Simulating…';
+  if (isManual) { btn.disabled = true; btn.textContent = '🔄 Syncing…'; }
   try {
-    for (let i = 0; i < 4; i += 1) {
-      await simulateOneTick();
-    }
-    showToast('Simulated new city activity');
+    await syncRealData();
+    if (isManual) showToast('Synced real weather, air quality, and report data');
   } catch (e) {
-    showToast('Simulate failed — check your connection to Supabase');
+    console.error('[sync] failed:', e);
+    if (isManual) showToast('Sync failed — check your connection');
   } finally {
-    btn.disabled = false;
-    btn.textContent = '🎲 Simulate';
+    if (isManual) { btn.disabled = false; btn.textContent = '🔄 Sync now'; }
   }
   // Realtime should already push these changes, but refresh directly too
   // in case this tab's own writes race the subscription callback.
@@ -757,7 +854,7 @@ function wireEvents() {
     }
   });
 
-  el('simulate-btn').addEventListener('click', runSimulate);
+  el('simulate-btn').addEventListener('click', () => runSync(true));
 
   el('alerts-close').addEventListener('click', closeAlertsModal);
   el('alerts-modal').addEventListener('click', (e) => {
@@ -828,10 +925,14 @@ function wireEvents() {
 }
 
 // ---------- Init ----------
+const REAL_DATA_SYNC_INTERVAL_MS = 5 * 60 * 1000; // weather/AQI don't meaningfully change faster than this
+
 (async function init() {
   initDate();
   initMap();
   wireEvents();
   await loadSummary();
   connectRealtime();
+  runSync(false); // pull real conditions immediately on load, no toast
+  setInterval(() => runSync(false), REAL_DATA_SYNC_INTERVAL_MS);
 })();
