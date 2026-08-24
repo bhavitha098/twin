@@ -1241,6 +1241,51 @@ nav a.active .nav-icon {
 
 .modal h3 { font-size: 16px; margin-bottom: 4px; }
 
+.modal-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+.modal-title-row h3 { margin-bottom: 0; }
+
+.report-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+.report-row .report-content { flex: 1; min-width: 0; }
+.report-row .report-content p { font-size: 10.5px; margin-bottom: 2px; }
+.report-row .report-meta { font-size: 9px; color: var(--faint); }
+.report-row .status-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.report-row select.status-select {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: 7px;
+  padding: 5px 7px;
+  font-size: 9.5px;
+  color: var(--text);
+  font-family: inherit;
+}
+
+.status-pill {
+  display: inline-block;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 3px 7px;
+  border-radius: 5px;
+  text-transform: uppercase;
+}
+.status-pill.open { background: var(--red-soft); color: var(--red); }
+.status-pill.in_progress { background: var(--accent-soft); color: var(--accent); }
+.status-pill.resolved { background: var(--teal-soft); color: var(--teal); }
+
 .modal label {
   display: flex;
   flex-direction: column;

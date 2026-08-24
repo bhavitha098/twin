@@ -420,7 +420,10 @@
   <!-- Citizen report modal -->
   <div id="report-modal" class="modal-overlay" hidden>
     <div class="modal">
-      <h3>New Citizen Report</h3>
+      <div class="modal-title-row">
+        <h3>New Citizen Report</h3>
+        <button id="open-manage-reports" class="ghost-btn" type="button">Manage existing →</button>
+      </div>
       <div id="report-pin-note" class="pin-note" hidden>
         <svg class="icon" viewBox="0 0 24 24"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.3"/></svg>
         Location pinned from map click
@@ -460,6 +463,17 @@
       <div id="alerts-list"></div>
       <div class="modal-actions">
         <button id="alerts-close" class="btn-secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manage reports modal -->
+  <div id="manage-reports-modal" class="modal-overlay" hidden>
+    <div class="modal alerts-modal">
+      <h3>Citizen Reports</h3>
+      <div id="manage-reports-list"></div>
+      <div class="modal-actions">
+        <button id="manage-reports-close" class="btn-secondary">Close</button>
       </div>
     </div>
   </div>

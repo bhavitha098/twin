@@ -184,6 +184,9 @@ create policy "anon dismiss actions" on actions for update using (true) with che
 drop policy if exists "anon simulate insert actions" on actions;
 create policy "anon simulate insert actions" on actions for insert with check (true);
 
+drop policy if exists "anon update report status" on reports;
+create policy "anon update report status" on reports for update using (true) with check (true);
+
 drop policy if exists "anon resolve alerts" on alerts;
 create policy "anon resolve alerts" on alerts for update using (true) with check (true);
 

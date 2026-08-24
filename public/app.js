@@ -260,6 +260,65 @@ function closeAlertsModal() {
   el('alerts-modal').hidden = true;
 }
 
+// ---------- Manage reports (status lifecycle) ----------
+const STATUS_LABEL = { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved' };
+const STATUS_ORDER = ['open', 'in_progress', 'resolved'];
+
+async function renderManageReports() {
+  const list = el('manage-reports-list');
+  list.innerHTML = '<div class="empty-state">Loading…</div>';
+  const { data, error } = await supabase.from('reports').select('*').order('created_at', { ascending: false }).limit(30);
+  if (error) {
+    list.innerHTML = '<div class="empty-state">Could not load reports.</div>';
+    return;
+  }
+  if (!data.length) {
+    list.innerHTML = '<div class="empty-state">No citizen reports yet.</div>';
+    return;
+  }
+  list.innerHTML = data.map((r) => `
+    <div class="report-row" data-id="${r.id}">
+      <div class="report-content">
+        <span class="status-pill ${r.status}">${STATUS_LABEL[r.status] || r.status}</span>
+        <p style="margin-top:6px"><strong>${escapeHtml(r.category)}</strong> — ${escapeHtml(r.location)}</p>
+        <p>${escapeHtml(r.description)}</p>
+        <span class="report-meta">${timeAgo(r.created_at)}</span>
+      </div>
+      <div class="status-actions">
+        <select class="status-select" data-id="${r.id}">
+          ${STATUS_ORDER.map((s) => `<option value="${s}" ${s === r.status ? 'selected' : ''}>${STATUS_LABEL[s]}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+  `).join('');
+
+  list.querySelectorAll('.status-select').forEach((sel) => {
+    sel.addEventListener('change', async () => {
+      const id = sel.getAttribute('data-id');
+      const newStatus = sel.value;
+      sel.disabled = true;
+      const { error: updateError } = await supabase.from('reports').update({ status: newStatus }).eq('id', id);
+      sel.disabled = false;
+      if (updateError) {
+        showToast('Could not update status — try again');
+        return;
+      }
+      const row = list.querySelector(`.report-row[data-id="${id}"] .status-pill`);
+      if (row) { row.className = `status-pill ${newStatus}`; row.textContent = STATUS_LABEL[newStatus]; }
+      showToast('Report status updated');
+    });
+  });
+}
+
+function openManageReportsModal() {
+  el('report-modal').hidden = true;
+  el('manage-reports-modal').hidden = false;
+  renderManageReports();
+}
+function closeManageReportsModal() {
+  el('manage-reports-modal').hidden = true;
+}
+
 // ---------- Map ----------
 const TYPE_COLOR = { traffic: '#ff5d69', water: '#4ca5ff', waste: '#ffad4d' };
 
@@ -1069,6 +1128,12 @@ function wireEvents() {
   el('alerts-close').addEventListener('click', closeAlertsModal);
   el('alerts-modal').addEventListener('click', (e) => {
     if (e.target.id === 'alerts-modal') closeAlertsModal();
+  });
+
+  el('open-manage-reports').addEventListener('click', openManageReportsModal);
+  el('manage-reports-close').addEventListener('click', closeManageReportsModal);
+  el('manage-reports-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'manage-reports-modal') closeManageReportsModal();
   });
 
   el('refresh-btn').addEventListener('click', () => {
