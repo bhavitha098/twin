@@ -841,6 +841,82 @@ nav a.active .nav-icon {
   margin-top: 3px;
 }
 
+/* Info tooltip: a small "?" next to a heading that explains, in plain
+   language, what the number/section actually is and where it comes from —
+   so the dashboard is self-explanatory without anyone narrating it. */
+.info-dot {
+  display: inline-grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--card-border);
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 700;
+  font-style: normal;
+  cursor: help;
+  vertical-align: middle;
+  position: relative;
+}
+
+.info-dot:hover,
+.info-dot:focus-visible {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent-line);
+  outline: none;
+}
+
+.info-dot::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: max-content;
+  max-width: 240px;
+  background: var(--text);
+  color: var(--card);
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  padding: 8px 10px;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  z-index: 40;
+}
+
+.info-dot::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--text);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  z-index: 40;
+}
+
+.info-dot:hover::after,
+.info-dot:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.info-dot:hover::before,
+.info-dot:focus-visible::before {
+  opacity: 1;
+}
+
 
 /* =========================
    MAP
@@ -1147,18 +1223,23 @@ nav a.active .nav-icon {
 .action-content strong { font-size: 11px; }
 .action-content p { color: var(--muted); font-size: 9.5px; margin-top: 3px; }
 
-.action button,
-.alert-row button {
-  width: 28px;
-  height: 28px;
+.action-done-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
   border-radius: 7px;
-  background: var(--bg);
-  border: 1px solid var(--card-border);
+  background: var(--teal-soft);
+  border: 1px solid var(--teal-line);
   color: var(--teal);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
-  display: grid;
-  place-items: center;
 }
+
+.action-done-btn:hover { background: var(--teal); color: #fff; }
+.action-done-btn svg { width: 12px; height: 12px; }
 
 .ghost-btn {
   background: var(--bg);

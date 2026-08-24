@@ -186,7 +186,7 @@ function renderActions(actions) {
         <strong>${escapeHtml(a.title)}</strong>
         <p>${escapeHtml(a.detail)}</p>
       </div>
-      <button data-dismiss="${a.id}" title="Mark done">${svgIcon(ICON_CHECK)}</button>
+      <button class="action-done-btn" data-dismiss="${a.id}" title="Mark this action done">${svgIcon(ICON_CHECK)} Mark done</button>
     </div>
   `).join('');
 
@@ -230,7 +230,7 @@ function renderAlertsModal() {
         <p>${escapeHtml(a.message)}</p>
         <span class="time">${timeAgo(a.created_at)}</span>
       </div>
-      <button data-resolve="${a.id}" title="Resolve">${svgIcon(ICON_CHECK)}</button>
+      <button class="action-done-btn" data-resolve="${a.id}" title="Resolve this alert">${svgIcon(ICON_CHECK)} Resolve</button>
     </div>
   `).join('');
 
@@ -711,15 +711,30 @@ function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 
 const CITY_CENTER = { lat: 17.4239, lng: 78.4738 };
 const HOTSPOT_COORDS = {
-  'hs-1': { lat: 17.4483, lng: 78.3915, type: 'traffic' }, // NH-65
-  'hs-2': { lat: 17.4239, lng: 78.4738, type: 'water' },   // Flood Risk Zone
-  'hs-3': { lat: 17.3850, lng: 78.4867, type: 'waste' },   // Ward 18
-  'hs-4': { lat: 17.4399, lng: 78.4482, type: 'traffic' }, // Begumpet Junction
-  'hs-5': { lat: 17.4239, lng: 78.4738, type: 'water' },   // Hussain Sagar
-  'hs-6': { lat: 17.4849, lng: 78.4138, type: 'traffic' }, // Kukatpally
-  'hs-7': { lat: 17.4400, lng: 78.3489, type: 'traffic' }, // Gachibowli
-  'hs-8': { lat: 17.3687, lng: 78.5247, type: 'traffic' }, // Dilsukhnagar
-  'hs-9': { lat: 17.4008, lng: 78.5591, type: 'traffic' }, // Uppal
+  'hs-1':  { lat: 17.4483, lng: 78.3915, type: 'traffic' }, // NH-65
+  'hs-2':  { lat: 17.3378, lng: 78.2601, type: 'water' },   // Osman Sagar (Gandipet reservoir)
+  'hs-3':  { lat: 17.3850, lng: 78.4867, type: 'waste' },   // Ward 18
+  'hs-4':  { lat: 17.4399, lng: 78.4482, type: 'traffic' }, // Begumpet Junction
+  'hs-5':  { lat: 17.4239, lng: 78.4738, type: 'water' },   // Hussain Sagar
+  'hs-6':  { lat: 17.4849, lng: 78.4138, type: 'traffic' }, // Kukatpally
+  'hs-7':  { lat: 17.4400, lng: 78.3489, type: 'traffic' }, // Gachibowli
+  'hs-8':  { lat: 17.3687, lng: 78.5247, type: 'traffic' }, // Dilsukhnagar
+  'hs-9':  { lat: 17.4008, lng: 78.5591, type: 'traffic' }, // Uppal
+  'hs-10': { lat: 17.4435, lng: 78.3772, type: 'traffic' }, // Hitech City
+  'hs-11': { lat: 17.4374, lng: 78.4487, type: 'traffic' }, // Ameerpet
+  'hs-12': { lat: 17.4966, lng: 78.3520, type: 'traffic' }, // Miyapur
+  'hs-13': { lat: 17.3495, lng: 78.5508, type: 'traffic' }, // LB Nagar
+  'hs-14': { lat: 17.3949, lng: 78.4378, type: 'traffic' }, // Mehdipatnam
+  'hs-15': { lat: 17.4262, lng: 78.4519, type: 'traffic' }, // Panjagutta
+  'hs-16': { lat: 17.3616, lng: 78.4747, type: 'traffic' }, // Charminar / Old City
+  'hs-17': { lat: 17.4707, lng: 78.5615, type: 'traffic' }, // ECIL
+  'hs-18': { lat: 17.4239, lng: 78.4092, type: 'traffic' }, // Jubilee Hills
+  'hs-19': { lat: 17.4615, lng: 78.3630, type: 'traffic' }, // Kondapur
+  'hs-20': { lat: 17.5085, lng: 78.3789, type: 'traffic' }, // Nizampet
+  'hs-21': { lat: 17.4065, lng: 78.3785, type: 'traffic' }, // Manikonda
+  'hs-22': { lat: 17.4501, lng: 78.5250, type: 'water' },   // Safilguda Lake, Malkajgiri
+  'hs-23': { lat: 17.3753, lng: 78.5000, type: 'waste' },   // Malakpet
+  'hs-24': { lat: 17.3495, lng: 78.5508, type: 'waste' },   // LB Nagar waste complaints
 };
 
 async function fetchWeather(lat, lng) {
@@ -846,6 +861,9 @@ const LEAK_ZONES = [
   { id: 'z1', label: 'Banjara Hills main', baseline: 42 },
   { id: 'z2', label: 'Secunderabad trunk line', baseline: 58 },
   { id: 'z3', label: 'Ward 18 distribution', baseline: 35 },
+  { id: 'z4', label: 'Kukatpally distribution', baseline: 47 },
+  { id: 'z5', label: 'LB Nagar trunk line', baseline: 51 },
+  { id: 'z6', label: 'Charminar / Old City main', baseline: 39 },
 ];
 
 function computeLeakDetection() {
@@ -909,6 +927,9 @@ const PARKING_ZONES = [
   { id: 'p2', label: 'Begumpet Business District' },
   { id: 'p3', label: 'Secunderabad Station Area' },
   { id: 'p4', label: 'Kukatpally (KPHB / Forum Mall)' },
+  { id: 'p5', label: 'Hitech City / Cyber Towers' },
+  { id: 'p6', label: 'Ameerpet Metro Hub' },
+  { id: 'p7', label: 'Charminar / Old City' },
 ];
 
 function parkingBaselineForHour(hour) {
@@ -921,8 +942,9 @@ function parkingBaselineForHour(hour) {
 
 function computeParkingReadout(weather, trafficPct) {
   const base = parkingBaselineForHour(weather.localHour);
+  const mid = (PARKING_ZONES.length - 1) / 2;
   return PARKING_ZONES.map((z, i) => {
-    const spread = (i - 1) * 6;
+    const spread = (i - mid) * 6;
     const occupancy = clamp(Math.round(base + spread + (trafficPct - 50) * 0.15), 5, 98);
     return { ...z, occupancy };
   });
@@ -944,16 +966,61 @@ function renderParking(zones) {
     : 'Predicted from real local time-of-day and the live traffic reading — not a sensor feed.';
 }
 
+// ---------- Waste Management: real per-zone breakdown ----------
+// Matches each zone against the free-text `location` citizens type when
+// filing a report, so — unlike the single citywide score above — this is a
+// genuine per-area count, not the same number copy-pasted onto every zone.
+const WASTE_ZONES = [
+  { id: 'w1', label: 'Ward 18 (Kothapet)', keyword: 'ward 18' },
+  { id: 'w2', label: 'Malakpet', keyword: 'malakpet' },
+  { id: 'w3', label: 'LB Nagar', keyword: 'lb nagar' },
+  { id: 'w4', label: 'Old City / Charminar', keyword: 'charminar' },
+];
+
+async function fetchWasteZoneCount(keyword, hours) {
+  const since = new Date(Date.now() - hours * 3600 * 1000).toISOString();
+  const { count } = await supabase
+    .from('reports').select('id', { count: 'exact' }).eq('category', 'Waste').ilike('location', `%${keyword}%`).gte('created_at', since).limit(1);
+  return count || 0;
+}
+
+function computeWasteReadout(zoneCounts) {
+  return WASTE_ZONES.map((z, i) => {
+    const count = zoneCounts[i] || 0;
+    const score = clamp(100 - count * 20, 15, 100);
+    return { ...z, score, count };
+  });
+}
+
+function renderWaste(zones) {
+  const avg = Math.round(zones.reduce((a, z) => a + z.score, 0) / zones.length);
+  el('waste-zones-overall').textContent = `${avg}/100`;
+  el('waste-zones-bars').innerHTML = zones.map((z) => `
+    <div class="health-row">
+      <span>${escapeHtml(z.label)}</span>
+      <div class="bar"><i class="${z.score < 50 ? 'red-bar' : z.score < 75 ? 'yellow-bar' : ''}" style="width:${z.score}%"></i></div>
+      <b>${z.score}/100</b>
+    </div>
+  `).join('');
+  const worst = zones.reduce((a, b) => (b.score < a.score ? b : a));
+  el('waste-zones-note').textContent = worst.count > 0
+    ? `${worst.label} has ${worst.count} real waste report${worst.count === 1 ? '' : 's'} in the last 24h — lowest zone score.`
+    : 'No zone-specific waste reports in the last 24h — matched against report locations you type in.';
+}
+
 async function syncRealData() {
   const trafficHotspotIds = Object.entries(HOTSPOT_COORDS).filter(([, m]) => m.type === 'traffic').map(([id]) => id);
-  const [{ data: statsRows }, weather, air, trafficReports, wasteReports, ...tomtomReadings] = await Promise.all([
+  const [{ data: statsRows }, weather, air, trafficReports, wasteReports, ...rest] = await Promise.all([
     supabase.from('stats').select('key, value'),
     fetchWeather(CITY_CENTER.lat, CITY_CENTER.lng),
     fetchAirQuality(CITY_CENTER.lat, CITY_CENTER.lng),
     recentReportCount('Traffic', 24),
     recentReportCount('Waste', 24),
     ...trafficHotspotIds.map((id) => fetchTrafficFlow(HOTSPOT_COORDS[id].lat, HOTSPOT_COORDS[id].lng)),
+    ...WASTE_ZONES.map((z) => fetchWasteZoneCount(z.keyword, 24)),
   ]);
+  const tomtomReadings = rest.slice(0, trafficHotspotIds.length);
+  const wasteZoneCounts = rest.slice(trafficHotspotIds.length);
   const stats = Object.fromEntries((statsRows || []).map((r) => [r.key, r.value]));
   // A real traffic reading of 0% (free-flowing roads) is valid data, not
   // "missing" — `!stats.traffic` would wrongly treat 0 as falsy and abort
@@ -1071,6 +1138,7 @@ async function syncRealData() {
   try { renderEnergy(computeEnergyReadout(weather)); } catch (e) { console.error('[sync] renderEnergy failed:', e); }
   try { renderLeakDetection(computeLeakDetection()); } catch (e) { console.error('[sync] renderLeakDetection failed:', e); }
   try { renderParking(computeParkingReadout(weather, trafficPct)); } catch (e) { console.error('[sync] renderParking failed:', e); }
+  try { renderWaste(computeWasteReadout(wasteZoneCounts)); } catch (e) { console.error('[sync] renderWaste failed:', e); }
 }
 
 async function runSync(isManual) {
@@ -1249,6 +1317,7 @@ function wireEvents() {
 
   el('open-manage-reports').addEventListener('click', openManageReportsModal);
   el('manage-reports-close').addEventListener('click', closeManageReportsModal);
+  el('open-new-report').addEventListener('click', () => { closeManageReportsModal(); openReportModal(); });
   el('manage-reports-modal').addEventListener('click', (e) => {
     if (e.target.id === 'manage-reports-modal') closeManageReportsModal();
   });
@@ -1281,7 +1350,7 @@ function wireEvents() {
         return;
       }
       if (target === 'reports') {
-        openReportModal();
+        openManageReportsModal();
         return;
       }
       if (target === 'infrastructure') {

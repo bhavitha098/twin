@@ -264,14 +264,29 @@ begin
 
     insert into hotspots (id, type, label, detail, lat, lng, intensity) values
       ('hs-1', 'traffic', 'NH-65 Traffic Hotspot', '72% congestion', 17.4483, 78.3915, 0.9),
-      ('hs-2', 'water', 'Flood Risk Zone', 'High probability', 17.4239, 78.4738, 0.7),
+      ('hs-2', 'water', 'Osman Sagar (Gandipet)', 'Awaiting first sync', 17.3378, 78.2601, 0.4),
       ('hs-3', 'waste', 'Ward 18 Complaints', '42% more complaints', 17.3850, 78.4867, 0.6),
       ('hs-4', 'traffic', 'Begumpet Junction', 'Moderate congestion', 17.4399, 78.4482, 0.5),
       ('hs-5', 'water', 'Hussain Sagar Overflow Watch', 'Monitoring', 17.4239, 78.4738, 0.4),
       ('hs-6', 'traffic', 'Kukatpally', 'Awaiting first sync', 17.4849, 78.4138, 0.3),
       ('hs-7', 'traffic', 'Gachibowli', 'Awaiting first sync', 17.4400, 78.3489, 0.3),
       ('hs-8', 'traffic', 'Dilsukhnagar', 'Awaiting first sync', 17.3687, 78.5247, 0.3),
-      ('hs-9', 'traffic', 'Uppal', 'Awaiting first sync', 17.4008, 78.5591, 0.3);
+      ('hs-9', 'traffic', 'Uppal', 'Awaiting first sync', 17.4008, 78.5591, 0.3),
+      ('hs-10', 'traffic', 'Hitech City', 'Awaiting first sync', 17.4435, 78.3772, 0.3),
+      ('hs-11', 'traffic', 'Ameerpet', 'Awaiting first sync', 17.4374, 78.4487, 0.3),
+      ('hs-12', 'traffic', 'Miyapur', 'Awaiting first sync', 17.4966, 78.3520, 0.3),
+      ('hs-13', 'traffic', 'LB Nagar', 'Awaiting first sync', 17.3495, 78.5508, 0.3),
+      ('hs-14', 'traffic', 'Mehdipatnam', 'Awaiting first sync', 17.3949, 78.4378, 0.3),
+      ('hs-15', 'traffic', 'Panjagutta', 'Awaiting first sync', 17.4262, 78.4519, 0.3),
+      ('hs-16', 'traffic', 'Charminar / Old City', 'Awaiting first sync', 17.3616, 78.4747, 0.3),
+      ('hs-17', 'traffic', 'ECIL', 'Awaiting first sync', 17.4707, 78.5615, 0.3),
+      ('hs-18', 'traffic', 'Jubilee Hills', 'Awaiting first sync', 17.4239, 78.4092, 0.3),
+      ('hs-19', 'traffic', 'Kondapur', 'Awaiting first sync', 17.4615, 78.3630, 0.3),
+      ('hs-20', 'traffic', 'Nizampet', 'Awaiting first sync', 17.5085, 78.3789, 0.3),
+      ('hs-21', 'traffic', 'Manikonda', 'Awaiting first sync', 17.4065, 78.3785, 0.3),
+      ('hs-22', 'water', 'Safilguda Lake, Malkajgiri', 'Awaiting first sync', 17.4501, 78.5250, 0.4),
+      ('hs-23', 'waste', 'Malakpet', 'Awaiting first sync', 17.3753, 78.5000, 0.3),
+      ('hs-24', 'waste', 'LB Nagar Waste Zone', 'Awaiting first sync', 17.3495, 78.5508, 0.3);
 
     insert into insights (icon, category, title, body, created_at) values
       ('🚦', 'traffic', 'Traffic anomaly detected', 'Congestion near NH-65 is 31% higher than the normal evening average.', now() - interval '12 minutes'),
