@@ -646,6 +646,7 @@ const HOTSPOT_COORDS = {
   'hs-3': { lat: 17.3850, lng: 78.4867, type: 'waste' },   // Ward 18
   'hs-4': { lat: 17.4399, lng: 78.4482, type: 'traffic' }, // Begumpet Junction
   'hs-5': { lat: 17.4239, lng: 78.4738, type: 'water' },   // Hussain Sagar
+  'hs-6': { lat: 17.4849, lng: 78.4138, type: 'traffic' }, // Kukatpally
 };
 
 async function fetchWeather(lat, lng) {
@@ -834,6 +835,7 @@ const PARKING_ZONES = [
   { id: 'p1', label: 'Banjara Hills Commercial' },
   { id: 'p2', label: 'Begumpet Business District' },
   { id: 'p3', label: 'Secunderabad Station Area' },
+  { id: 'p4', label: 'Kukatpally (KPHB / Forum Mall)' },
 ];
 
 function parkingBaselineForHour(hour) {
@@ -880,7 +882,10 @@ async function syncRealData() {
     ...trafficHotspotIds.map((id) => fetchTrafficFlow(HOTSPOT_COORDS[id].lat, HOTSPOT_COORDS[id].lng)),
   ]);
   const stats = Object.fromEntries((statsRows || []).map((r) => [r.key, r.value]));
-  if (!stats.traffic) return;
+  // A real traffic reading of 0% (free-flowing roads) is valid data, not
+  // "missing" — `!stats.traffic` would wrongly treat 0 as falsy and abort
+  // the entire sync (every pillar) whenever traffic is genuinely clear.
+  if (typeof stats.traffic !== 'number') return;
 
   const tomtomByHotspot = Object.fromEntries(trafficHotspotIds.map((id, i) => [id, tomtomReadings[i]]));
   const liveReadings = Object.values(tomtomByHotspot).filter((v) => v !== null);
@@ -918,7 +923,8 @@ async function syncRealData() {
     }
     return { id, intensity: clamp(0.1 + wasteReports * 0.15, 0.1, 1), detail: `${wasteReports} real waste report${wasteReports === 1 ? '' : 's'} in the last 24h` };
   });
-  await Promise.all(hotspotUpdates.map((h) => supabase.from('hotspots').update({ intensity: h.intensity, detail: h.detail }).eq('id', h.id)));
+  const hotspotResults = await Promise.all(hotspotUpdates.map((h) => supabase.from('hotspots').update({ intensity: h.intensity, detail: h.detail }).eq('id', h.id)));
+  hotspotResults.forEach((r, i) => { if (r.error) console.error('[sync] hotspot update failed for', hotspotUpdates[i].id, r.error); });
 
   // Real-threshold-triggered insights/alerts — only when the real number
   // actually crosses a line, and only once per few hours per category, so a
@@ -989,9 +995,9 @@ async function syncRealData() {
   // These three pillars are computed and rendered client-side only (not
   // persisted to Supabase) — see each section's comment above for what's
   // real data versus a documented algorithmic placeholder.
-  renderEnergy(computeEnergyReadout(weather));
-  renderLeakDetection(computeLeakDetection());
-  renderParking(computeParkingReadout(weather, trafficPct));
+  try { renderEnergy(computeEnergyReadout(weather)); } catch (e) { console.error('[sync] renderEnergy failed:', e); }
+  try { renderLeakDetection(computeLeakDetection()); } catch (e) { console.error('[sync] renderLeakDetection failed:', e); }
+  try { renderParking(computeParkingReadout(weather, trafficPct)); } catch (e) { console.error('[sync] renderParking failed:', e); }
 }
 
 async function runSync(isManual) {
