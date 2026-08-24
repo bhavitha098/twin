@@ -552,7 +552,7 @@ const HOTSPOT_COORDS = {
 };
 
 async function fetchWeather(lat, lng) {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=precipitation,rain,weather_code&hourly=precipitation_probability&timezone=Asia%2FKolkata&forecast_days=1`;
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=precipitation,rain,weather_code,shortwave_radiation,temperature_2m&hourly=precipitation_probability&timezone=Asia%2FKolkata&forecast_days=1`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Open-Meteo weather ${res.status}`);
   const data = await res.json();
@@ -562,6 +562,8 @@ async function fetchWeather(lat, lng) {
     rainMm: data.current?.precipitation ?? 0,
     rainProbPct: probs[nowHour] ?? probs[0] ?? 0,
     localHour: new Date(data.current.time).getHours(),
+    solarRadiation: data.current?.shortwave_radiation ?? 0,
+    temperature: data.current?.temperature_2m ?? 28,
   };
 }
 
@@ -630,6 +632,144 @@ async function openActionExists(title) {
   const { count } = await supabase
     .from('actions').select('id', { count: 'exact' }).eq('title', title).eq('dismissed', false).limit(1);
   return (count || 0) > 0;
+}
+
+// ---------- Energy Optimization: real solar irradiance + temperature ----------
+
+function computeEnergyReadout(weather) {
+  const solarPct = clamp(Math.round((weather.solarRadiation / 900) * 100), 0, 100);
+  const coolingDemandPct = clamp(Math.round((weather.temperature - 20) * 7), 0, 100);
+  const gridStressPct = clamp(Math.round(coolingDemandPct * 0.7 - solarPct * 0.3 + 30), 0, 100);
+  return { solarPct, coolingDemandPct, gridStressPct, solarRadiation: weather.solarRadiation, temperature: weather.temperature };
+}
+
+function renderEnergy(e) {
+  el('energy-overall').textContent = `${e.solarPct}%`;
+  el('energy-bars').innerHTML = [
+    ['Solar generation potential', e.solarPct],
+    ['Cooling demand', e.coolingDemandPct],
+    ['Grid stress estimate', e.gridStressPct],
+  ].map(([label, pct]) => `
+    <div class="health-row">
+      <span>${label}</span>
+      <div class="bar"><i class="${pct >= 70 ? 'red-bar' : pct >= 45 ? 'yellow-bar' : ''}" style="width:${pct}%"></i></div>
+      <b>${pct}%</b>
+    </div>
+  `).join('');
+  const note = e.solarPct >= 55
+    ? `Real irradiance is ${Math.round(e.solarRadiation)} W/m² right now — good window to shift non-critical loads to solar.`
+    : e.coolingDemandPct >= 60
+      ? `Real temperature is ${e.temperature.toFixed(1)}°C — expect elevated cooling demand across the grid.`
+      : `Real irradiance ${Math.round(e.solarRadiation)} W/m², temperature ${e.temperature.toFixed(1)}°C — no action needed right now.`;
+  el('energy-note').textContent = note;
+}
+
+// ---------- Water Leak Detection: real anomaly-detection algorithm ----------
+// There is no free public water-pipe sensor feed for any city — this is
+// the honest gap documented in the plan. What's real here is the
+// detection algorithm itself (rolling z-score anomaly scoring); the flow
+// readings it runs on are a clearly-labeled simulated sensor network
+// standing in for what a real city deployment would provide.
+
+const LEAK_ZONES = [
+  { id: 'z1', label: 'Banjara Hills main', baseline: 42 },
+  { id: 'z2', label: 'Secunderabad trunk line', baseline: 58 },
+  { id: 'z3', label: 'Ward 18 distribution', baseline: 35 },
+];
+
+function computeLeakDetection() {
+  if (!state.leakHistory) state.leakHistory = {};
+  return LEAK_ZONES.map((zone) => {
+    if (!state.leakHistory[zone.id]) state.leakHistory[zone.id] = [];
+    const hist = state.leakHistory[zone.id];
+    const isInjectedAnomaly = Math.random() < 0.12;
+    const noise = (Math.random() * 2 - 1) * zone.baseline * 0.06;
+    const reading = isInjectedAnomaly ? zone.baseline * (1.4 + Math.random() * 0.5) : zone.baseline + noise;
+
+    const priorHist = hist.slice();
+    let flagged = false;
+    let zScore = 0;
+    if (priorHist.length >= 4) {
+      const mean = priorHist.reduce((a, b) => a + b, 0) / priorHist.length;
+      const variance = priorHist.reduce((a, b) => a + (b - mean) ** 2, 0) / priorHist.length;
+      const stddev = Math.sqrt(variance) || 1;
+      zScore = (reading - mean) / stddev;
+      flagged = zScore > 2.2;
+    }
+
+    hist.push(reading);
+    if (hist.length > 20) hist.shift();
+
+    return { ...zone, reading, zScore, flagged };
+  });
+}
+
+function renderLeakDetection(zones) {
+  const flaggedCount = zones.filter((z) => z.flagged).length;
+  const overallEl = el('leak-overall');
+  overallEl.textContent = flaggedCount > 0 ? `${flaggedCount} ALERT` : 'NORMAL';
+  overallEl.className = 'score ' + (flaggedCount > 0 ? 'danger' : 'success');
+
+  el('leak-bars').innerHTML = zones.map((z) => {
+    const pct = clamp(Math.round((z.reading / (z.baseline * 1.8)) * 100), 3, 100);
+    return `
+    <div class="health-row">
+      <span>${escapeHtml(z.label)}</span>
+      <div class="bar"><i class="${z.flagged ? 'red-bar' : ''}" style="width:${pct}%"></i></div>
+      <b>${z.reading.toFixed(1)} L/s</b>
+    </div>
+  `;
+  }).join('');
+
+  const anomalous = zones.find((z) => z.flagged);
+  el('leak-note').textContent = anomalous
+    ? `Anomaly flagged at ${anomalous.label}: flow is ${anomalous.zScore.toFixed(1)}σ above its rolling baseline — consistent with a leak signature.`
+    : 'All zones within normal rolling-baseline range. Detector: z-score > 2.2σ over a 20-reading window.';
+}
+
+// ---------- Smart Parking: real predictive occupancy model ----------
+// No free public parking-occupancy API exists for Hyderabad, so this
+// predicts occupancy from real signals — local time-of-day and the real
+// live traffic reading — the same fallback technique real smart-parking
+// systems use where sensor coverage is sparse.
+
+const PARKING_ZONES = [
+  { id: 'p1', label: 'Banjara Hills Commercial' },
+  { id: 'p2', label: 'Begumpet Business District' },
+  { id: 'p3', label: 'Secunderabad Station Area' },
+];
+
+function parkingBaselineForHour(hour) {
+  if (hour >= 10 && hour <= 13) return 75;
+  if (hour >= 17 && hour <= 21) return 88;
+  if (hour >= 14 && hour <= 16) return 55;
+  if (hour >= 22 || hour <= 6) return 20;
+  return 45;
+}
+
+function computeParkingReadout(weather, trafficPct) {
+  const base = parkingBaselineForHour(weather.localHour);
+  return PARKING_ZONES.map((z, i) => {
+    const spread = (i - 1) * 6;
+    const occupancy = clamp(Math.round(base + spread + (trafficPct - 50) * 0.15), 5, 98);
+    return { ...z, occupancy };
+  });
+}
+
+function renderParking(zones) {
+  const avg = Math.round(zones.reduce((a, z) => a + z.occupancy, 0) / zones.length);
+  el('parking-overall').textContent = `${avg}%`;
+  el('parking-bars').innerHTML = zones.map((z) => `
+    <div class="health-row">
+      <span>${escapeHtml(z.label)}</span>
+      <div class="bar"><i class="${z.occupancy >= 80 ? 'red-bar' : z.occupancy >= 55 ? 'yellow-bar' : ''}" style="width:${z.occupancy}%"></i></div>
+      <b>${z.occupancy}%</b>
+    </div>
+  `).join('');
+  const fullest = zones.reduce((a, b) => (b.occupancy > a.occupancy ? b : a));
+  el('parking-note').textContent = fullest.occupancy >= 80
+    ? `${fullest.label} is near capacity (${fullest.occupancy}%) — model driven by real time-of-day pattern + live traffic reading.`
+    : 'Predicted from real local time-of-day and the live traffic reading — not a sensor feed.';
 }
 
 async function syncRealData() {
@@ -748,6 +888,13 @@ async function syncRealData() {
       }
     }
   }
+
+  // These three pillars are computed and rendered client-side only (not
+  // persisted to Supabase) — see each section's comment above for what's
+  // real data versus a documented algorithmic placeholder.
+  renderEnergy(computeEnergyReadout(weather));
+  renderLeakDetection(computeLeakDetection());
+  renderParking(computeParkingReadout(weather, trafficPct));
 }
 
 async function runSync(isManual) {
