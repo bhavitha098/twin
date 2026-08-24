@@ -298,6 +298,20 @@ begin
     -- probability, waste reports, AQI). A fresh install starts with an
     -- honest empty state instead of invented crises that never happened.
 
+    -- Demo citizen reports, clearly labeled as such (never disguised as
+    -- real submissions), so a fresh install isn't a dead-empty Citizen
+    -- Reports list. Locations/categories are grounded in real, documented
+    -- patterns rather than picked arbitrarily — e.g. Charminar/Old City's
+    -- entry reflects GHMC's own sanitation-drive coverage of that zone
+    -- (dense footfall, narrow lanes, recurring garbage buildup).
+    insert into reports (category, description, location, lat, lng, status) values
+      ('Waste', '[Demo seed data — not a real citizen submission] Overflowing garbage bin near the market.', 'Ward 18, Kothapet', 17.3850, 78.4867, 'open'),
+      ('Waste', '[Demo seed data — not a real citizen submission] Uncollected trash pile for 3 days.', 'Malakpet main road', 17.3753, 78.5000, 'open'),
+      ('Waste', '[Demo seed data — not a real citizen submission] Garbage not collected this week near the bus stand.', 'LB Nagar', 17.3495, 78.5508, 'in_progress'),
+      ('Waste', '[Demo seed data — not a real citizen submission] Garbage buildup near the market lanes — narrow streets and heavy footfall make daily collection difficult, a known recurring issue in this zone per GHMC sanitation drives.', 'Charminar, Old City', 17.3616, 78.4747, 'open'),
+      ('Traffic', '[Demo seed data — not a real citizen submission] Heavy congestion during evening rush hour.', 'NH-65, near Uppal', 17.4008, 78.5591, 'open'),
+      ('Water', '[Demo seed data — not a real citizen submission] Suspected pipe leak, puddle forming daily.', 'Banjara Hills Road No. 12', 17.4126, 78.4487, 'open');
+
     -- Synthetic 24h backfill so trend charts have something to show on
     -- first load, instead of a flat line until the demo has been running
     -- for hours. 10-minute resolution, random-walked back from the seed
