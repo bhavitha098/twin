@@ -151,10 +151,56 @@ create policy "public submit reports" on reports for insert with check (true);
 drop policy if exists "admin update reports" on reports;
 create policy "admin update reports" on reports for update using (is_admin()) with check (is_admin());
 
--- stats / stat_history / hotspots / insights / health_scores get no
--- insert/update/delete policy for anon or authenticated — only the backend's
--- service_role key (used by server/simulator.js) can write to them, since
--- service_role bypasses RLS entirely.
+-- =========================================================
+-- ANON WRITE POLICIES — zero-backend architecture
+-- This app has NO server: the browser talks to Supabase directly with the
+-- public anon key. There is no login, so "admin" actions (dismiss an
+-- action, resolve an alert) and the on-demand "Simulate" data generator
+-- are deliberately open to any anon visitor — that's the tradeoff of a
+-- single-shared-admin hackathon demo with zero backend. Do not reuse this
+-- pattern for anything with real users or real data; the fix, if this
+-- ever needs to be real, is Supabase Auth + tightening these to
+-- is_admin() the way "admin update actions/alerts" already do below.
+-- =========================================================
+
+drop policy if exists "anon simulate update stats" on stats;
+create policy "anon simulate update stats" on stats for update using (true) with check (true);
+
+drop policy if exists "anon simulate insert stat_history" on stat_history;
+create policy "anon simulate insert stat_history" on stat_history for insert with check (true);
+
+drop policy if exists "anon simulate update hotspots" on hotspots;
+create policy "anon simulate update hotspots" on hotspots for update using (true) with check (true);
+
+drop policy if exists "anon insert insights" on insights;
+create policy "anon insert insights" on insights for insert with check (true);
+
+drop policy if exists "anon simulate insert alerts" on alerts;
+create policy "anon simulate insert alerts" on alerts for insert with check (true);
+
+drop policy if exists "anon dismiss actions" on actions;
+create policy "anon dismiss actions" on actions for update using (true) with check (true);
+
+drop policy if exists "anon simulate insert actions" on actions;
+create policy "anon simulate insert actions" on actions for insert with check (true);
+
+drop policy if exists "anon resolve alerts" on alerts;
+create policy "anon resolve alerts" on alerts for update using (true) with check (true);
+
+-- Atomic counter bump for new citizen reports — used instead of a
+-- client-side read-then-write so two simultaneous report submissions
+-- from different browsers can't race and lose an increment.
+create or replace function public.increment_report_stats()
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update stats set value = value + 1 where key = 'reports_total';
+  update stats set value = value + 1 where key = 'reports_unresolved';
+$$;
+
+grant execute on function public.increment_report_stats() to anon, authenticated;
 
 -- =========================================================
 -- STORAGE: citizen report photo uploads
