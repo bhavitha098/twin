@@ -898,10 +898,20 @@ nav a.active .nav-icon {
 .map-footer {
   padding: 12px 20px;
   display: flex;
-  gap: 18px;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
   font-size: 9px;
   color: var(--muted);
   border-top: 1px solid var(--border-soft);
+}
+
+.map-footer > div { display: flex; align-items: center; }
+
+.map-footer-hint {
+  margin-left: auto;
+  font-style: italic;
+  color: var(--faint);
 }
 
 .legend {

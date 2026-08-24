@@ -364,16 +364,20 @@ function renderHotspots(hotspots) {
   hotspots.forEach((hs) => {
     seen.add(hs.id);
     const visible = state.filter === 'all' || state.filter === hs.type;
+    const popupHtml = `<div class="civic-popup"><b>${escapeHtml(hs.label)}</b>${escapeHtml(hs.detail)}</div>`;
+    const tooltipHtml = `<b>${escapeHtml(hs.label)}</b><br>${escapeHtml(hs.detail)}`;
     if (state.markers[hs.id]) {
       state.markers[hs.id].setIcon(markerIcon(hs.type, hs.intensity));
       state.markers[hs.id].setLatLng([hs.lat, hs.lng]);
-      state.markers[hs.id].setPopupContent(`<div class="civic-popup"><b>${escapeHtml(hs.label)}</b>${escapeHtml(hs.detail)}</div>`);
+      state.markers[hs.id].setPopupContent(popupHtml);
+      state.markers[hs.id].setTooltipContent(tooltipHtml);
       const layerVisible = state.map.hasLayer(state.markers[hs.id]);
       if (visible && !layerVisible) state.markers[hs.id].addTo(state.map);
       if (!visible && layerVisible) state.map.removeLayer(state.markers[hs.id]);
     } else {
       const marker = L.marker([hs.lat, hs.lng], { icon: markerIcon(hs.type, hs.intensity) });
-      marker.bindPopup(`<div class="civic-popup"><b>${escapeHtml(hs.label)}</b>${escapeHtml(hs.detail)}</div>`);
+      marker.bindPopup(popupHtml);
+      marker.bindTooltip(tooltipHtml, { direction: 'top', offset: [0, -6] });
       if (visible) marker.addTo(state.map);
       state.markers[hs.id] = marker;
     }
@@ -1160,6 +1164,16 @@ function wireEvents() {
       }
       if (target === 'reports') {
         openReportModal();
+        return;
+      }
+      if (target === 'infrastructure') {
+        document.querySelector('.pillars-grid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        showToast('Energy, Water Leak Detection, and Smart Parking — below');
+        return;
+      }
+      if (target === 'analytics') {
+        document.querySelector('.insights-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        showToast('Trends and AI Insights — here');
         return;
       }
       showToast('This section is coming soon');
