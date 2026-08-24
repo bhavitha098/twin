@@ -1362,6 +1362,23 @@ nav a.active .nav-icon {
 }
 
 .alerts-modal { width: 440px; }
+.analytics-modal { width: 640px; }
+
+.chart-panel { margin-top: 16px; }
+.chart-panel .chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.chart-panel .chart-head strong { font-size: 12.5px; }
+.chart-panel .chart-head .chart-range { font-size: 10.5px; color: var(--muted); font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.chart-panel svg { width: 100%; height: 110px; display: block; }
+.chart-panel .grid-line { stroke: var(--border-soft); stroke-width: 1; }
+.chart-panel .chart-area { opacity: 0.12; }
+.chart-panel .chart-line { fill: none; stroke-width: 2; }
+.chart-panel .chart-end { r: 3; }
+.chart-panel .axis-label { font-size: 9px; fill: var(--faint); font-family: "IBM Plex Mono", ui-monospace, monospace; }
 
 #alerts-list {
   max-height: 50vh;

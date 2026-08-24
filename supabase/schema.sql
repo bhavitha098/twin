@@ -268,7 +268,10 @@ begin
       ('hs-3', 'waste', 'Ward 18 Complaints', '42% more complaints', 17.3850, 78.4867, 0.6),
       ('hs-4', 'traffic', 'Begumpet Junction', 'Moderate congestion', 17.4399, 78.4482, 0.5),
       ('hs-5', 'water', 'Hussain Sagar Overflow Watch', 'Monitoring', 17.4239, 78.4738, 0.4),
-      ('hs-6', 'traffic', 'Kukatpally', 'Awaiting first sync', 17.4849, 78.4138, 0.3);
+      ('hs-6', 'traffic', 'Kukatpally', 'Awaiting first sync', 17.4849, 78.4138, 0.3),
+      ('hs-7', 'traffic', 'Gachibowli', 'Awaiting first sync', 17.4400, 78.3489, 0.3),
+      ('hs-8', 'traffic', 'Dilsukhnagar', 'Awaiting first sync', 17.3687, 78.5247, 0.3),
+      ('hs-9', 'traffic', 'Uppal', 'Awaiting first sync', 17.4008, 78.5591, 0.3);
 
     insert into insights (icon, category, title, body, created_at) values
       ('🚦', 'traffic', 'Traffic anomaly detected', 'Congestion near NH-65 is 31% higher than the normal evening average.', now() - interval '12 minutes'),

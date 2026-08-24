@@ -319,6 +319,76 @@ function closeManageReportsModal() {
   el('manage-reports-modal').hidden = true;
 }
 
+// ---------- Analytics: real 24h charts from stat_history ----------
+const ANALYTICS_SERIES = [
+  { key: 'traffic', label: 'Traffic congestion', color: 'var(--red)', unit: '%' },
+  { key: 'waste_management', label: 'Waste management score', color: 'var(--accent)', unit: '/100' },
+  { key: 'reports_unresolved', label: 'Unresolved citizen reports', color: 'var(--blue)', unit: '' },
+];
+
+function drawChart(points, color, unit) {
+  if (points.length < 2) return '<div class="empty-state">Not enough history yet.</div>';
+  const values = points.map((p) => p.value);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const W = 600, H = 100, PAD = 4;
+  const coords = values.map((v, i) => {
+    const x = PAD + (i / (values.length - 1)) * (W - PAD * 2);
+    const y = PAD + (H - PAD * 2) - ((v - min) / range) * (H - PAD * 2);
+    return [x, y];
+  });
+  const linePath = coords.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const areaPath = `${linePath} L${coords[coords.length - 1][0].toFixed(1)},${H - PAD} L${coords[0][0].toFixed(1)},${H - PAD} Z`;
+  const [lastX, lastY] = coords[coords.length - 1];
+  const gridLines = [0.25, 0.5, 0.75].map((f) => `<line class="grid-line" x1="0" y1="${(H * f).toFixed(1)}" x2="${W}" y2="${(H * f).toFixed(1)}" />`).join('');
+  return `
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+      ${gridLines}
+      <path d="${areaPath}" class="chart-area" fill="${color}" />
+      <path d="${linePath}" class="chart-line" stroke="${color}" />
+      <circle class="chart-end" cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" fill="${color}" />
+    </svg>
+    <div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted)">
+      <span>min ${min.toFixed(1)}${unit}</span>
+      <span>current ${values[values.length - 1].toFixed(1)}${unit}</span>
+      <span>max ${max.toFixed(1)}${unit}</span>
+    </div>
+  `;
+}
+
+async function renderAnalyticsCharts() {
+  const container = el('analytics-charts');
+  container.innerHTML = '<div class="empty-state">Loading real 24h history…</div>';
+  const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+  const results = await Promise.all(ANALYTICS_SERIES.map((s) =>
+    supabase.from('stat_history').select('value, recorded_at').eq('key', s.key).gte('recorded_at', since).order('recorded_at', { ascending: true })
+  ));
+
+  container.innerHTML = ANALYTICS_SERIES.map((s, i) => {
+    const points = results[i].data || [];
+    const first = points[0] ? new Date(points[0].recorded_at) : null;
+    const last = points[points.length - 1] ? new Date(points[points.length - 1].recorded_at) : null;
+    const range = first && last
+      ? `${first.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} → ${last.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+      : '';
+    return `
+      <div class="chart-panel">
+        <div class="chart-head"><strong>${escapeHtml(s.label)}</strong><span class="chart-range">${range}</span></div>
+        ${drawChart(points, s.color, s.unit)}
+      </div>
+    `;
+  }).join('');
+}
+
+function openAnalyticsModal() {
+  el('analytics-modal').hidden = false;
+  renderAnalyticsCharts();
+}
+function closeAnalyticsModal() {
+  el('analytics-modal').hidden = true;
+}
+
 // ---------- Map ----------
 const TYPE_COLOR = { traffic: '#ff5d69', water: '#4ca5ff', waste: '#ffad4d' };
 
@@ -647,6 +717,9 @@ const HOTSPOT_COORDS = {
   'hs-4': { lat: 17.4399, lng: 78.4482, type: 'traffic' }, // Begumpet Junction
   'hs-5': { lat: 17.4239, lng: 78.4738, type: 'water' },   // Hussain Sagar
   'hs-6': { lat: 17.4849, lng: 78.4138, type: 'traffic' }, // Kukatpally
+  'hs-7': { lat: 17.4400, lng: 78.3489, type: 'traffic' }, // Gachibowli
+  'hs-8': { lat: 17.3687, lng: 78.5247, type: 'traffic' }, // Dilsukhnagar
+  'hs-9': { lat: 17.4008, lng: 78.5591, type: 'traffic' }, // Uppal
 };
 
 async function fetchWeather(lat, lng) {
@@ -1180,6 +1253,11 @@ function wireEvents() {
     if (e.target.id === 'manage-reports-modal') closeManageReportsModal();
   });
 
+  el('analytics-close').addEventListener('click', closeAnalyticsModal);
+  el('analytics-modal').addEventListener('click', (e) => {
+    if (e.target.id === 'analytics-modal') closeAnalyticsModal();
+  });
+
   el('refresh-btn').addEventListener('click', () => {
     loadSummary();
     showToast('Refreshed');
@@ -1212,8 +1290,7 @@ function wireEvents() {
         return;
       }
       if (target === 'analytics') {
-        document.querySelector('.insights-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
-        showToast('Trends and AI Insights — here');
+        openAnalyticsModal();
         return;
       }
       showToast('This section is coming soon');
