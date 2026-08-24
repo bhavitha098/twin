@@ -305,6 +305,8 @@ async function renderManageReports() {
       }
       const row = list.querySelector(`.report-row[data-id="${id}"] .status-pill`);
       if (row) { row.className = `status-pill ${newStatus}`; row.textContent = STATUS_LABEL[newStatus]; }
+      const counts = await realReportCounts();
+      await supabase.from('stats').update({ value: counts.unresolved }).eq('key', 'reports_unresolved');
       showToast('Report status updated');
     });
   });
@@ -681,7 +683,11 @@ async function submitReport() {
       lng: state.reportPin ? state.reportPin.lng : null,
     });
     if (error) throw error;
-    await supabase.rpc('increment_report_stats');
+    const counts = await realReportCounts();
+    await Promise.all([
+      supabase.from('stats').update({ value: counts.total }).eq('key', 'reports_total'),
+      supabase.from('stats').update({ value: counts.unresolved }).eq('key', 'reports_unresolved'),
+    ]);
     closeReportModal();
     showToast('Report submitted — thank you!');
     loadSummary();
@@ -799,6 +805,18 @@ async function recentReportCount(category, hours) {
   const { count } = await supabase
     .from('reports').select('id', { count: 'exact' }).eq('category', category).gte('created_at', since).limit(1);
   return count || 0;
+}
+
+// Counts the real rows in the `reports` table directly, rather than trusting
+// a manually-incremented counter — a counter can drift from reality (it did:
+// stats.reports_total sat at 1308 while the table held 8 real rows). Counting
+// the table itself every sync makes it self-healing.
+async function realReportCounts() {
+  const [{ count: total }, { count: unresolved }] = await Promise.all([
+    supabase.from('reports').select('id', { count: 'exact', head: true }),
+    supabase.from('reports').select('id', { count: 'exact', head: true }).neq('status', 'resolved'),
+  ]);
+  return { total: total || 0, unresolved: unresolved || 0 };
 }
 
 async function recentInsightExists(category, hours) {
@@ -1010,12 +1028,13 @@ function renderWaste(zones) {
 
 async function syncRealData() {
   const trafficHotspotIds = Object.entries(HOTSPOT_COORDS).filter(([, m]) => m.type === 'traffic').map(([id]) => id);
-  const [{ data: statsRows }, weather, air, trafficReports, wasteReports, ...rest] = await Promise.all([
+  const [{ data: statsRows }, weather, air, trafficReports, wasteReports, reportCounts, ...rest] = await Promise.all([
     supabase.from('stats').select('key, value'),
     fetchWeather(CITY_CENTER.lat, CITY_CENTER.lng),
     fetchAirQuality(CITY_CENTER.lat, CITY_CENTER.lng),
     recentReportCount('Traffic', 24),
     recentReportCount('Waste', 24),
+    realReportCounts(),
     ...trafficHotspotIds.map((id) => fetchTrafficFlow(HOTSPOT_COORDS[id].lat, HOTSPOT_COORDS[id].lng)),
     ...WASTE_ZONES.map((z) => fetchWasteZoneCount(z.keyword, 24)),
   ]);
@@ -1042,13 +1061,14 @@ async function syncRealData() {
     ['traffic', trafficPct],
     ['water_health', waterHealth],
     ['waste_management', wasteManagement],
+    ['reports_total', reportCounts.total],
+    ['reports_unresolved', reportCounts.unresolved],
   ];
   await Promise.all(updates.map(([key, next]) =>
     supabase.from('stats').update({ value: next, delta: +(next - stats[key]).toFixed(1) }).eq('key', key)
   ));
   await supabase.from('stat_history').insert([
-    ...updates.filter(([key]) => key !== 'water_health').map(([key, value]) => ({ key, value })),
-    { key: 'reports_unresolved', value: stats.reports_unresolved },
+    ...updates.filter(([key]) => key !== 'water_health' && key !== 'reports_total').map(([key, value]) => ({ key, value })),
   ]);
 
   const hotspotUpdates = Object.entries(HOTSPOT_COORDS).map(([id, meta]) => {

@@ -190,21 +190,6 @@ create policy "anon update report status" on reports for update using (true) wit
 drop policy if exists "anon resolve alerts" on alerts;
 create policy "anon resolve alerts" on alerts for update using (true) with check (true);
 
--- Atomic counter bump for new citizen reports — used instead of a
--- client-side read-then-write so two simultaneous report submissions
--- from different browsers can't race and lose an increment.
-create or replace function public.increment_report_stats()
-returns void
-language sql
-security definer
-set search_path = public
-as $$
-  update stats set value = value + 1 where key = 'reports_total';
-  update stats set value = value + 1 where key = 'reports_unresolved';
-$$;
-
-grant execute on function public.increment_report_stats() to anon, authenticated;
-
 -- =========================================================
 -- STORAGE: citizen report photo uploads
 -- =========================================================
@@ -257,8 +242,8 @@ begin
 
     insert into stats (key, value, delta) values
       ('traffic', 72, 12),
-      ('reports_total', 1284, 0),
-      ('reports_unresolved', 184, 0),
+      ('reports_total', 0, 0),
+      ('reports_unresolved', 0, 0),
       ('water_health', 94.2, 2.4),
       ('city_health', 87, 0);
 
@@ -314,15 +299,13 @@ begin
     -- first load, instead of a flat line until the demo has been running
     -- for hours. 10-minute resolution, random-walked back from the seed
     -- value, clamped to a sane range per key.
-    for k in select key from stats where key in ('traffic', 'water_health', 'city_health', 'reports_unresolved') loop
+    for k in select key from stats where key in ('traffic', 'water_health', 'city_health') loop
       select value into base from stats where key = k;
       v := base;
       for i in reverse 144..0 loop
         t := now() - (i * interval '10 minutes');
         v := v + (random() * 6 - 3);
-        if k = 'reports_unresolved' then
-          v := greatest(30, least(400, v));
-        elsif k = 'water_health' then
+        if k = 'water_health' then
           v := greatest(70, least(99.9, v));
         else
           v := greatest(20, least(98, v));
