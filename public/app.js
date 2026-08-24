@@ -458,16 +458,42 @@ function ruleBasedAnswer(question, ctx) {
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
+// Real Gemini via the Vercel serverless function when it's reachable and
+// configured; silently falls back to the rule-based pattern matcher
+// otherwise (local dev with `npm run dev`, GitHub Pages, or Vercel before
+// GEMINI_API_KEY is set — none of those have a working /api route).
+async function callAI(mode, payload) {
+  try {
+    const res = await fetch('/api/ask-ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode, ...payload }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    return null;
+  }
+}
+
 async function askAI(question) {
   const answerBox = el('ai-answer');
   const safeQuestion = escapeHtml(question);
   answerBox.hidden = false;
   answerBox.innerHTML = `<span class="q">${safeQuestion}</span>Thinking…`;
-  await sleep(350);
   if (!state.latestSummary) {
+    await sleep(350);
     answerBox.innerHTML = `<span class="q">${safeQuestion}</span>Still loading live city data — try again in a second.`;
     return;
   }
+
+  const real = await callAI('ask', { question, context: state.latestSummary });
+  if (real && real.answer) {
+    answerBox.innerHTML = `<span class="q">${safeQuestion}</span>${escapeHtml(real.answer)}`;
+    return;
+  }
+
+  await sleep(200);
   const answer = ruleBasedAnswer(question, state.latestSummary);
   answerBox.innerHTML = `<span class="q">${safeQuestion}</span>${escapeHtml(answer)}`;
 }
@@ -497,20 +523,28 @@ function biggestTrend(history) {
 
 async function generateInsight() {
   if (!state.latestSummary) return;
-  const t = biggestTrend(state.latestSummary.history);
-  let insight;
-  if (!t) {
-    insight = { icon: 'general', category: 'general', title: 'Not enough data yet', body: 'The trend history is still warming up — click Simulate a few times or check back shortly.' };
-  } else {
-    const dir = t.pctChange >= 0 ? 'up' : 'down';
-    insight = {
-      icon: t.icon,
-      category: t.category,
-      title: `${t.label} trending ${dir}`,
-      body: `${t.label} moved from ${t.first.toFixed(1)}${t.unit} to ${t.last.toFixed(1)}${t.unit} over the last 6 hours (${t.pctChange >= 0 ? '+' : ''}${t.pctChange.toFixed(1)}%).`,
-    };
+
+  const real = await callAI('insight', { trends: state.latestSummary.history, context: state.latestSummary });
+  let insight = real && real.title && real.body ? real : null;
+
+  if (!insight) {
+    const t = biggestTrend(state.latestSummary.history);
+    if (!t) {
+      insight = { icon: 'general', category: 'general', title: 'Not enough data yet', body: 'The trend history is still warming up — click Sync a few times or check back shortly.' };
+    } else {
+      const dir = t.pctChange >= 0 ? 'up' : 'down';
+      insight = {
+        icon: t.icon,
+        category: t.category,
+        title: `${t.label} trending ${dir}`,
+        body: `${t.label} moved from ${t.first.toFixed(1)}${t.unit} to ${t.last.toFixed(1)}${t.unit} over the last 6 hours (${t.pctChange >= 0 ? '+' : ''}${t.pctChange.toFixed(1)}%).`,
+      };
+    }
   }
-  const { error } = await supabase.from('insights').insert(insight);
+
+  const { error } = await supabase.from('insights').insert({
+    icon: insight.icon, category: insight.category, title: insight.title, body: insight.body,
+  });
   if (error) throw error;
 }
 
