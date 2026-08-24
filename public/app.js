@@ -18,7 +18,7 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-const HISTORY_KEYS = ['traffic', 'water_health', 'city_health', 'reports_unresolved'];
+const HISTORY_KEYS = ['traffic', 'reports_unresolved', 'waste_management'];
 
 const state = {
   filter: 'all',
@@ -45,8 +45,10 @@ function showToast(message) {
 function initDate() {
   const today = new Date();
   el('today-label').textContent = today
-    .toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-    .toUpperCase();
+    .toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const tick = () => { el('clock-label').textContent = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }); };
+  tick();
+  setInterval(tick, 30000);
 }
 
 // ---------- Connection status ----------
@@ -81,8 +83,7 @@ function renderHistory(history) {
   if (!history) return;
   renderSparkline('spark-traffic', history.traffic, 'var(--red)');
   renderSparkline('spark-reports_unresolved', history.reports_unresolved, 'var(--orange)');
-  renderSparkline('spark-water_health', history.water_health, 'var(--blue)');
-  renderSparkline('spark-city_health', history.city_health, 'var(--green)');
+  renderSparkline('spark-waste_management', history.waste_management, 'var(--orange)');
 }
 
 // ---------- Stats ----------
@@ -98,19 +99,15 @@ function renderStats(stats) {
   el('progress-reports').style.width = `${Math.min(100, Math.round((unresolved.value / total.value) * 100))}%`;
   el('stat-reports-unresolved').textContent = `${Math.round(unresolved.value)} unresolved`;
 
-  const water = stats.water_health;
-  el('stat-water').textContent = `${water.value.toFixed(1)}%`;
-  el('progress-water').style.width = `${water.value.toFixed(1)}%`;
-  el('delta-water').textContent = `${water.delta >= 0 ? '↑' : '↓'} ${Math.abs(water.delta).toFixed(1)}%`;
+  const waste = stats.waste_management;
+  el('stat-waste').textContent = `${Math.round(waste.value)}/100`;
+  el('progress-waste').style.width = `${Math.round(waste.value)}%`;
+  el('delta-waste').textContent = `${waste.delta >= 0 ? '↑' : '↓'} ${Math.abs(waste.delta).toFixed(1)}`;
 
-  const health = stats.city_health;
-  el('stat-health').textContent = `${Math.round(health.value)}/100`;
-  el('progress-health').style.width = `${Math.round(health.value)}%`;
-  const label = health.value >= 80 ? 'Good' : health.value >= 60 ? 'Fair' : 'Needs attention';
-  const cls = health.value >= 80 ? 'success' : health.value >= 60 ? 'warning' : 'danger';
-  const labelEl = el('health-label');
-  labelEl.textContent = label;
-  labelEl.className = cls;
+  el('sidebar-score').textContent = Math.round(waste.value);
+  const sideDelta = el('sidebar-score-delta');
+  sideDelta.textContent = `${waste.delta >= 0 ? '+' : ''}${waste.delta.toFixed(1)}`;
+  sideDelta.style.color = waste.delta >= 0 ? '#34d399' : '#f87171';
 }
 
 // ---------- Insights ----------
@@ -124,6 +121,16 @@ function timeAgo(ts) {
 }
 
 const CATEGORY_BG = { traffic: 'red-bg', water: 'blue-bg', waste: 'orange-bg' };
+const CATEGORY_ICON = {
+  traffic: '<path d="M4 16V11l2-5h12l2 5v5"/><path d="M4 16h16"/><circle cx="7.5" cy="16.5" r="1.5"/><circle cx="16.5" cy="16.5" r="1.5"/>',
+  water: '<path d="M12 3s6 7 6 11a6 6 0 01-12 0c0-4 6-11 6-11z"/>',
+  waste: '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/>',
+};
+const ICON_CHECK = '<path d="M4 12l5 5L20 6"/>';
+
+function svgIcon(pathMarkup) {
+  return `<svg class="icon" viewBox="0 0 24 24">${pathMarkup}</svg>`;
+}
 
 function renderInsights(insights) {
   const list = el('insights-list');
@@ -133,7 +140,7 @@ function renderInsights(insights) {
   }
   list.innerHTML = insights.map((i) => `
     <div class="insight">
-      <div class="insight-icon ${CATEGORY_BG[i.category] || 'blue-bg'}">${i.icon}</div>
+      <div class="insight-icon ${CATEGORY_BG[i.category] || 'blue-bg'}">${svgIcon(CATEGORY_ICON[i.category] || CATEGORY_ICON.water)}</div>
       <div>
         <strong>${escapeHtml(i.title)}</strong>
         <p>${escapeHtml(i.body)}</p>
@@ -143,23 +150,33 @@ function renderInsights(insights) {
   `).join('');
 }
 
-// ---------- Health ----------
-function renderHealth(health) {
-  el('score-overall').textContent = health.overall;
-  el('health-bars').innerHTML = health.breakdown.map((row) => `
+// ---------- Current Traffic Situation ----------
+function renderTrafficDetail(overallPct, hotspots) {
+  const overallEl = el('traffic-overall');
+  overallEl.textContent = `${Math.round(overallPct)}%`;
+  overallEl.className = 'score ' + (overallPct >= 70 ? 'danger' : overallPct >= 45 ? 'warning' : 'success');
+  const corridors = hotspots.filter((h) => h.type === 'traffic');
+  if (!corridors.length) {
+    el('traffic-bars').innerHTML = '<div class="empty-state">No traffic corridors reporting right now.</div>';
+    return;
+  }
+  el('traffic-bars').innerHTML = corridors.map((h) => {
+    const pct = Math.round(h.intensity * 100);
+    return `
     <div class="health-row">
-      <span>${escapeHtml(row.category)}</span>
-      <div class="bar"><i class="${row.score < 75 ? 'yellow-bar' : ''}" style="width:${row.score}%"></i></div>
-      <b>${row.score}</b>
+      <span>${escapeHtml(h.label)}</span>
+      <div class="bar"><i class="${pct >= 70 ? 'yellow-bar' : ''}" style="width:${pct}%"></i></div>
+      <b>${pct}%</b>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 // ---------- Actions ----------
 function renderActions(actions) {
   const list = el('actions-list');
   if (!actions.length) {
-    list.innerHTML = '<div class="empty-state">No open recommended actions right now 🎉</div>';
+    list.innerHTML = '<div class="empty-state">No open recommended actions right now.</div>';
     return;
   }
   list.innerHTML = actions.map((a) => `
@@ -169,7 +186,7 @@ function renderActions(actions) {
         <strong>${escapeHtml(a.title)}</strong>
         <p>${escapeHtml(a.detail)}</p>
       </div>
-      <button data-dismiss="${a.id}" title="Mark done">✓</button>
+      <button data-dismiss="${a.id}" title="Mark done">${svgIcon(ICON_CHECK)}</button>
     </div>
   `).join('');
 
@@ -196,13 +213,14 @@ const SEVERITY_CLASS = { high: 'high', medium: 'medium', low: 'low' };
 function renderAlerts(alerts) {
   state.latestAlerts = alerts;
   el('alert-badge').textContent = alerts.length;
+  el('bell-dot').hidden = alerts.length === 0;
   if (!el('alerts-modal').hidden) renderAlertsModal();
 }
 
 function renderAlertsModal() {
   const list = el('alerts-list');
   if (!state.latestAlerts.length) {
-    list.innerHTML = '<div class="empty-state">No active alerts 🎉</div>';
+    list.innerHTML = '<div class="empty-state">No active alerts right now.</div>';
     return;
   }
   list.innerHTML = state.latestAlerts.map((a) => `
@@ -212,7 +230,7 @@ function renderAlertsModal() {
         <p>${escapeHtml(a.message)}</p>
         <span class="time">${timeAgo(a.created_at)}</span>
       </div>
-      <button data-resolve="${a.id}" title="Resolve">✓</button>
+      <button data-resolve="${a.id}" title="Resolve">${svgIcon(ICON_CHECK)}</button>
     </div>
   `).join('');
 
@@ -251,7 +269,7 @@ function initMap() {
     attributionControl: false,
   }).setView([17.4239, 78.4738], 12);
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     subdomains: 'abcd',
     maxZoom: 19,
   }).addTo(state.map);
@@ -359,13 +377,6 @@ const AI_RULES = [
     },
   },
   {
-    match: /health|score|overall/i,
-    respond(ctx) {
-      return `Overall city health score is ${Math.round(ctx.stats.city_health.value)}/100. Breakdown: ` +
-        ctx.health.map((c) => `${c.category} ${c.score}`).join(', ') + '.';
-    },
-  },
-  {
     match: /report/i,
     respond(ctx) {
       return `There are currently ${ctx.openReportsCount} citizen reports open in the system, and ${Math.round(ctx.stats.reports_unresolved.value)} unresolved issues city-wide.`;
@@ -375,11 +386,11 @@ const AI_RULES = [
 
 function ruleBasedAnswer(question, ctx) {
   const q = (question || '').trim();
-  if (!q) return 'Ask me about traffic, flood risk, garbage complaints, emergency hotspots, or overall city health.';
+  if (!q) return 'Ask me about traffic, flood risk, garbage complaints, or emergency hotspots.';
   for (const rule of AI_RULES) {
     if (rule.match.test(q)) return rule.respond(ctx);
   }
-  return `I don't have a specific model for that yet, but here's a quick snapshot: traffic is at ${ctx.stats.traffic.value.toFixed(0)}%, and overall city health is ${Math.round(ctx.stats.city_health.value)}/100. Try asking about traffic, flooding, garbage, emergencies, or health score.`;
+  return `I don't have a specific model for that yet, but here's a quick snapshot: traffic is at ${ctx.stats.traffic.value.toFixed(0)}%, and waste management score is ${Math.round(ctx.stats.waste_management.value)}/100. Try asking about traffic, flooding, garbage, or emergencies.`;
 }
 
 function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
@@ -401,10 +412,9 @@ async function askAI(question) {
 // ---------- AI: generate an insight from real 6h trends ----------
 
 const TREND_META = {
-  traffic: { label: 'Traffic congestion', icon: '🚦', category: 'traffic', unit: '%' },
-  water_health: { label: 'Water network health', icon: '💧', category: 'water', unit: '%' },
-  city_health: { label: 'City health score', icon: '🏙️', category: 'health', unit: '/100' },
-  reports_unresolved: { label: 'Unresolved citizen reports', icon: '📋', category: 'reports', unit: '' },
+  traffic: { label: 'Traffic congestion', icon: 'traffic', category: 'traffic', unit: '%' },
+  reports_unresolved: { label: 'Unresolved citizen reports', icon: 'reports', category: 'reports', unit: '' },
+  waste_management: { label: 'Waste management score', icon: 'waste', category: 'waste', unit: '/100' },
 };
 
 function biggestTrend(history) {
@@ -427,7 +437,7 @@ async function generateInsight() {
   const t = biggestTrend(state.latestSummary.history);
   let insight;
   if (!t) {
-    insight = { icon: '🤖', category: 'general', title: 'Not enough data yet', body: 'The trend history is still warming up — click Simulate a few times or check back shortly.' };
+    insight = { icon: 'general', category: 'general', title: 'Not enough data yet', body: 'The trend history is still warming up — click Simulate a few times or check back shortly.' };
   } else {
     const dir = t.pctChange >= 0 ? 'up' : 'down';
     insight = {
@@ -614,23 +624,20 @@ async function syncRealData() {
   const trafficPct = clamp(trafficBaselineForHour(weather.localHour) + Math.min(trafficReports * 3, 20), 5, 98);
   const waterHealth = clamp(100 - weather.rainMm * 8 - weather.rainProbPct * 0.15, 55, 100);
   const environmentScore = clamp(Math.round(100 - air.aqi * 0.5), 0, 100);
-  const cityHealth = clamp((100 - trafficPct) * 0.3 + waterHealth * 0.3 + environmentScore * 0.4, 0, 100);
+  const wasteManagement = clamp(Math.round(100 - wasteReports * 12), 20, 100);
 
   const updates = [
     ['traffic', trafficPct],
     ['water_health', waterHealth],
-    ['city_health', cityHealth],
+    ['waste_management', wasteManagement],
   ];
   await Promise.all(updates.map(([key, next]) =>
     supabase.from('stats').update({ value: next, delta: +(next - stats[key]).toFixed(1) }).eq('key', key)
   ));
   await supabase.from('stat_history').insert([
-    ...updates.map(([key, value]) => ({ key, value })),
+    ...updates.filter(([key]) => key !== 'water_health').map(([key, value]) => ({ key, value })),
     { key: 'reports_unresolved', value: stats.reports_unresolved },
   ]);
-
-  await supabase.from('health_scores').update({ score: environmentScore }).eq('category', 'Environment');
-  await supabase.from('health_scores').update({ score: Math.round(100 - trafficPct) }).eq('category', 'Transport');
 
   const hotspotUpdates = Object.entries(HOTSPOT_COORDS).map(([id, meta]) => {
     if (meta.type === 'traffic') {
@@ -648,19 +655,19 @@ async function syncRealData() {
   // 5-minute sync loop doesn't spam duplicates.
   if (weather.rainProbPct >= 60 && !(await recentInsightExists('water', 3))) {
     await supabase.from('insights').insert({
-      icon: '🌧️', category: 'water', title: 'Real rain probability elevated',
+      icon: 'water', category: 'water', title: 'Real rain probability elevated',
       body: `Open-Meteo puts this hour's rain probability at ${Math.round(weather.rainProbPct)}% near the city's flood-risk zones.`,
     });
   }
   if (trafficPct >= 75 && !(await recentInsightExists('traffic', 3))) {
     await supabase.from('insights').insert({
-      icon: '🚦', category: 'traffic', title: 'Traffic pattern crossing rush-hour levels',
+      icon: 'traffic', category: 'traffic', title: 'Traffic pattern crossing rush-hour levels',
       body: `Estimated congestion is at ${Math.round(trafficPct)}% right now (time-of-day pattern${trafficReports ? ` + ${trafficReports} real citizen reports` : ''}).`,
     });
   }
   if (wasteReports >= 3 && !(await recentInsightExists('waste', 3))) {
     await supabase.from('insights').insert({
-      icon: '🗑️', category: 'waste', title: 'Real waste-report volume climbing',
+      icon: 'waste', category: 'waste', title: 'Real waste-report volume climbing',
       body: `${wasteReports} citizens have filed waste reports in the last 24 hours.`,
     });
   }
@@ -712,7 +719,8 @@ async function syncRealData() {
 
 async function runSync(isManual) {
   const btn = el('simulate-btn');
-  if (isManual) { btn.disabled = true; btn.textContent = '🔄 Syncing…'; }
+  const label = el('simulate-btn-label');
+  if (isManual) { btn.disabled = true; label.textContent = 'Syncing…'; }
   try {
     await syncRealData();
     if (isManual) showToast('Synced real weather, air quality, and report data');
@@ -720,7 +728,7 @@ async function runSync(isManual) {
     console.error('[sync] failed:', e);
     if (isManual) showToast('Sync failed — check your connection');
   } finally {
-    if (isManual) { btn.disabled = false; btn.textContent = '🔄 Sync now'; }
+    if (isManual) { btn.disabled = false; label.textContent = 'Sync now'; }
   }
   // Realtime should already push these changes, but refresh directly too
   // in case this tab's own writes race the subscription callback.
@@ -751,18 +759,17 @@ function loadSummary() {
 
 async function fetchAndRenderSummary() {
   const since = new Date(Date.now() - 6 * 3600 * 1000).toISOString();
-  const [statsRes, hotspotsRes, insightsRes, healthRes, actionsRes, alertsRes, historyRes, openReportsRes] = await Promise.all([
+  const [statsRes, hotspotsRes, insightsRes, actionsRes, alertsRes, historyRes, openReportsRes] = await Promise.all([
     supabase.from('stats').select('key, value, delta'),
     supabase.from('hotspots').select('*'),
     supabase.from('insights').select('*').order('created_at', { ascending: false }).limit(3),
-    supabase.from('health_scores').select('*'),
     supabase.from('actions').select('*').eq('dismissed', false).order('created_at', { ascending: false }),
     supabase.from('alerts').select('*').eq('resolved', false).order('created_at', { ascending: false }),
     supabase.from('stat_history').select('key, value, recorded_at').in('key', HISTORY_KEYS).gte('recorded_at', since).order('recorded_at', { ascending: true }),
     supabase.from('reports').select('id', { count: 'exact' }).eq('status', 'open').limit(1),
   ]);
 
-  const firstError = [statsRes, hotspotsRes, insightsRes, healthRes, actionsRes, alertsRes, historyRes, openReportsRes].find((r) => r.error);
+  const firstError = [statsRes, hotspotsRes, insightsRes, actionsRes, alertsRes, historyRes, openReportsRes].find((r) => r.error);
   if (firstError) {
     console.error('[loadSummary]', firstError.error);
     setStatus(false);
@@ -780,7 +787,6 @@ async function fetchAndRenderSummary() {
     stats,
     hotspots: hotspotsRes.data,
     insights: insightsRes.data,
-    health: { overall: Math.round(stats.city_health.value), breakdown: healthRes.data },
     actions: actionsRes.data,
     alerts: alertsRes.data,
     history,
@@ -790,7 +796,7 @@ async function fetchAndRenderSummary() {
   state.latestSummary = summary;
   renderStats(summary.stats);
   renderInsights(summary.insights);
-  renderHealth(summary.health);
+  renderTrafficDetail(summary.stats.traffic.value, summary.hotspots);
   renderActions(summary.actions);
   renderAlerts(summary.alerts);
   renderHotspots(summary.hotspots);
@@ -807,7 +813,7 @@ function scheduleRefresh() {
 
 function connectRealtime() {
   const channel = supabase.channel('civic-twin-live');
-  ['stats', 'hotspots', 'insights', 'health_scores', 'actions', 'alerts', 'reports'].forEach((table) => {
+  ['stats', 'hotspots', 'insights', 'actions', 'alerts', 'reports'].forEach((table) => {
     channel.on('postgres_changes', { event: '*', schema: 'public', table }, scheduleRefresh);
   });
   channel.subscribe((status) => {
@@ -832,6 +838,29 @@ function wireEvents() {
     btn.addEventListener('click', () => askAI(btn.dataset.q));
   });
 
+  const askFromMiniChat = () => {
+    const q = el('mini-ai-input').value.trim();
+    if (!q) return;
+    el('mini-ai-input').value = '';
+    document.querySelector('.ai-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    askAI(q);
+  };
+  el('mini-ai-ask-btn').addEventListener('click', askFromMiniChat);
+  el('mini-ai-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') askFromMiniChat(); });
+
+  el('cmd-search').addEventListener('click', () => {
+    document.querySelector('.ai-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    el('ai-input').focus();
+  });
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      el('cmd-search').click();
+    }
+  });
+
+  el('bell-btn').addEventListener('click', openAlertsModal);
+
   document.querySelectorAll('.map-controls button[data-filter]').forEach((btn) => {
     btn.addEventListener('click', () => applyFilter(btn.dataset.filter));
   });
@@ -840,8 +869,9 @@ function wireEvents() {
 
   el('generate-insight-btn').addEventListener('click', async () => {
     const btn = el('generate-insight-btn');
+    const label = el('generate-btn-label');
     btn.disabled = true;
-    btn.textContent = 'Thinking…';
+    label.textContent = 'Thinking…';
     try {
       await generateInsight();
       showToast('New AI insight generated');
@@ -850,7 +880,7 @@ function wireEvents() {
       showToast('Could not generate an insight — try again');
     } finally {
       btn.disabled = false;
-      btn.textContent = '🧠 Generate';
+      label.textContent = 'Generate';
     }
   });
 

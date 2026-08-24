@@ -14,41 +14,64 @@
   <aside class="sidebar">
 
     <div class="logo">
-      <div class="logo-icon">🏙️</div>
+      <div class="logo-icon">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="4" y="8" width="7" height="13"/><rect x="13" y="3" width="7" height="18"/><path d="M7 12h1M7 16h1M16 7h1M16 11h1M16 15h1"/></svg>
+      </div>
       <div>
         <h2>Civic Twin</h2>
         <span>City Intelligence AI</span>
       </div>
     </div>
 
+    <div class="live-badge">Real-time data</div>
+    <div class="env-caption">HYDERABAD · ZERO-BACKEND</div>
+
     <nav>
       <a href="#" class="active" data-nav="dashboard">
-        <span>📊</span> <span class="nav-label">Dashboard</span>
+        <span class="nav-icon"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.3"/><rect x="14" y="3" width="7" height="7" rx="1.3"/><rect x="3" y="14" width="7" height="7" rx="1.3"/><rect x="14" y="14" width="7" height="7" rx="1.3"/></svg></span>
+        <span class="nav-label">Dashboard</span>
       </a>
 
       <a href="#" data-nav="map">
-        <span>🗺️</span> <span class="nav-label">City Map</span>
+        <span class="nav-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M3 6l6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg></span>
+        <span class="nav-label">City Map</span>
       </a>
 
       <a href="#" data-nav="alerts">
-        <span>⚠️</span> <span class="nav-label">Alerts</span>
+        <span class="nav-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 10v4"/><circle cx="12" cy="16.7" r="0.6" fill="currentColor" stroke="none"/></svg></span>
+        <span class="nav-label">Alerts</span>
         <b class="badge" id="alert-badge">0</b>
       </a>
 
       <a href="#" data-nav="infrastructure">
-        <span>🏗️</span> <span class="nav-label">Infrastructure</span>
+        <span class="nav-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V10l7-5 7 5v11"/><path d="M10 21v-6h4v6"/></svg></span>
+        <span class="nav-label">Infrastructure</span>
       </a>
 
       <a href="#" data-nav="reports">
-        <span>📝</span> <span class="nav-label">Citizen Reports</span>
+        <span class="nav-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M6 2h9l4 4v16H6z"/><path d="M15 2v4h4"/><path d="M9 12h6M9 16h6"/></svg></span>
+        <span class="nav-label">Citizen Reports</span>
       </a>
 
       <a href="#" data-nav="analytics">
-        <span>📈</span> <span class="nav-label">Analytics</span>
+        <span class="nav-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M3 17l6-6 4 4 8-9"/><path d="M15 6h6v6"/></svg></span>
+        <span class="nav-label">Analytics</span>
       </a>
     </nav>
 
     <div class="sidebar-bottom">
+      <div class="confidence-card">
+        <div class="k">
+          <svg class="icon" viewBox="0 0 24 24" style="width:12px;height:12px"><path d="M3 17l6-6 4 4 8-9"/><path d="M15 6h6v6"/></svg>
+          Waste mgmt score
+        </div>
+        <div class="v">
+          <strong id="sidebar-score">—</strong>
+          <span>/100</span>
+          <span class="delta" id="sidebar-score-delta"></span>
+        </div>
+      </div>
+
       <div class="system-status">
         <div class="status-dot" id="status-dot"></div>
         <div>
@@ -76,29 +99,55 @@
     <header class="header">
 
       <div>
-        <p class="eyebrow" id="today-label">TODAY</p>
-        <h1>Good evening, City Admin 👋</h1>
-        <p class="subtitle">
-          Your city intelligence overview is ready.
-        </p>
+        <p class="breadcrumb">OPERATIONS ROOM / <b>DASHBOARD</b></p>
+        <p class="timestamp"><span id="today-label">—</span> · <span id="clock-label">—</span> local</p>
       </div>
 
       <div class="header-actions">
-        <button class="icon-btn" id="simulate-btn" title="Pull real weather, air quality, and citizen-report data right now">🔄 Sync now</button>
-        <button class="icon-btn" id="refresh-btn" title="Refresh now">🔄</button>
-        <button class="city-selector" id="city-selector">
-          <span id="city-name">Hyderabad</span>
-          <span>▾</span>
+        <button class="search-box-top" id="cmd-search" title="Jump to Ask Civic Twin">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+          <span>Search the city</span>
+          <kbd>⌘K</kbd>
         </button>
+        <button class="icon-btn-round" id="bell-btn" title="Open alerts">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 3l10 18H2z"/><path d="M12 10v4"/><circle cx="12" cy="16.7" r="0.6" fill="currentColor" stroke="none"/></svg>
+          <span class="dot" id="bell-dot" hidden></span>
+        </button>
+        <div class="header-avatar">AD</div>
       </div>
 
     </header>
+
+    <div class="page-title-row">
+      <div>
+        <p class="eyebrow">CITY INTELLIGENCE · LIVE</p>
+        <h1>Good evening, City Admin</h1>
+        <p class="subtitle">Your city intelligence overview is ready — every number below is either a real external reading or computed from real citizen activity.</p>
+      </div>
+
+      <div class="title-actions">
+        <span class="pill live">REAL-TIME FEED</span>
+        <button class="icon-btn" id="simulate-btn" title="Pull real weather, air quality, and citizen-report data right now">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/></svg>
+          <span id="simulate-btn-label">Sync now</span>
+        </button>
+        <button class="icon-btn icon-only" id="refresh-btn" title="Refresh now">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/></svg>
+        </button>
+        <button class="city-selector" id="city-selector">
+          <span id="city-name">Hyderabad</span>
+          <svg class="icon" viewBox="0 0 24 24"><path d="M5 8l7 7 7-7"/></svg>
+        </button>
+      </div>
+    </div>
 
 
     <!-- AI Search -->
     <section class="ai-box">
 
-      <div class="ai-icon">🤖</div>
+      <div class="ai-icon">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="12.5" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="10" r="1" fill="currentColor" stroke="none"/></svg>
+      </div>
 
       <div class="ai-content">
         <div class="ai-title">
@@ -121,10 +170,10 @@
         </div>
 
         <div class="suggestions">
-          <button data-q="Why is traffic increasing?">🚦 Why is traffic increasing?</button>
-          <button data-q="Flood risk areas">🌧️ Flood risk areas</button>
-          <button data-q="Garbage complaints">🗑️ Garbage complaints</button>
-          <button data-q="Emergency hotspots">🔥 Emergency hotspots</button>
+          <button data-q="Why is traffic increasing?"><svg class="icon" viewBox="0 0 24 24"><path d="M4 16V11l2-5h12l2 5v5"/><path d="M4 16h16"/><circle cx="7.5" cy="16.5" r="1.5"/><circle cx="16.5" cy="16.5" r="1.5"/></svg> Why is traffic increasing?</button>
+          <button data-q="Flood risk areas"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3s6 7 6 11a6 6 0 01-12 0c0-4 6-11 6-11z"/></svg> Flood risk areas</button>
+          <button data-q="Garbage complaints"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg> Garbage complaints</button>
+          <button data-q="Emergency hotspots"><svg class="icon" viewBox="0 0 24 24"><path d="M12 2s5 5 5 10a5 5 0 01-10 0c0-2 1-3 1-3s1 2 2 2c1 0-1-3 2-9z"/></svg> Emergency hotspots</button>
         </div>
 
         <div id="ai-answer" class="ai-answer" hidden></div>
@@ -139,7 +188,7 @@
       <div class="stat-card">
         <div class="stat-top">
           <span>Traffic</span>
-          <div class="stat-icon red">🚗</div>
+          <div class="stat-icon red"><svg class="icon" viewBox="0 0 24 24"><path d="M4 16V11l2-5h12l2 5v5"/><path d="M4 16h16"/><circle cx="7.5" cy="16.5" r="1.5"/><circle cx="16.5" cy="16.5" r="1.5"/></svg></div>
         </div>
 
         <h2 id="stat-traffic">—</h2>
@@ -156,7 +205,7 @@
       <div class="stat-card">
         <div class="stat-top">
           <span>Citizen Reports</span>
-          <div class="stat-icon orange">!</div>
+          <div class="stat-icon orange"><svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16" r="0.6" fill="currentColor" stroke="none"/></svg></div>
         </div>
 
         <h2 id="stat-reports-total">—</h2>
@@ -172,35 +221,33 @@
 
       <div class="stat-card">
         <div class="stat-top">
-          <span>Water Network</span>
-          <div class="stat-icon blue">💧</div>
+          <span>Waste Management</span>
+          <div class="stat-icon orange"><svg class="icon" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg></div>
         </div>
 
-        <h2 id="stat-water">—</h2>
+        <h2 id="stat-waste">—</h2>
 
         <div class="progress">
-          <div class="progress-blue" id="progress-water"></div>
+          <div class="progress-orange" id="progress-waste"></div>
         </div>
 
-        <p><span class="success" id="delta-water">—</span> system health</p>
-        <svg class="sparkline" id="spark-water_health" viewBox="0 0 100 24" preserveAspectRatio="none"></svg>
+        <p><span class="success" id="delta-waste">—</span> collection score</p>
+        <svg class="sparkline" id="spark-waste_management" viewBox="0 0 100 24" preserveAspectRatio="none"></svg>
       </div>
 
 
-      <div class="stat-card">
+      <div class="stat-card ai-chat-card">
         <div class="stat-top">
-          <span>City Health</span>
-          <div class="stat-icon green">✔</div>
+          <span>AI Chat</span>
+          <div class="stat-icon blue"><svg class="icon" viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4z"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="12.5" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="16" cy="10" r="1" fill="currentColor" stroke="none"/></svg></div>
         </div>
 
-        <h2 id="stat-health">—</h2>
+        <p class="ai-chat-prompt">Ask about your city right now.</p>
 
-        <div class="progress">
-          <div class="progress-green" id="progress-health"></div>
+        <div class="mini-chat">
+          <input type="text" id="mini-ai-input" placeholder="e.g. Where's the worst traffic?">
+          <button id="mini-ai-ask-btn" title="Ask"><svg class="icon" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
         </div>
-
-        <p><span class="success" id="health-label">—</span> overall condition</p>
-        <svg class="sparkline" id="spark-city_health" viewBox="0 0 100 24" preserveAspectRatio="none"></svg>
       </div>
 
     </section>
@@ -224,7 +271,10 @@
             <button data-filter="traffic">Traffic</button>
             <button data-filter="water">Water</button>
             <button data-filter="waste">Waste</button>
-            <button id="pin-report-btn" title="Click a spot on the map to file a report there">📍 Report Here</button>
+            <button id="pin-report-btn" title="Click a spot on the map to file a report there">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.3"/></svg>
+              Report Here
+            </button>
           </div>
         </div>
 
@@ -265,7 +315,10 @@
           </div>
 
           <div class="card-header-actions">
-            <button id="generate-insight-btn" class="ghost-btn" title="Ask Claude to analyze live trends">🧠 Generate</button>
+            <button id="generate-insight-btn" class="ghost-btn" title="Analyze live 6h trends for a new insight">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5z"/></svg>
+              <span id="generate-btn-label">Generate</span>
+            </button>
             <span class="live">LIVE</span>
           </div>
         </div>
@@ -284,19 +337,19 @@
     <!-- Bottom section -->
     <section class="bottom-grid">
 
-      <!-- City Health -->
+      <!-- Current Traffic Situation -->
       <div class="health-card">
 
         <div class="card-header">
           <div>
-            <h3>City Health Score</h3>
-            <p>Based on 24 civic indicators</p>
+            <h3>Current Traffic Situation</h3>
+            <p>Live congestion by corridor</p>
           </div>
 
-          <strong class="score" id="score-overall">—</strong>
+          <strong class="score" id="traffic-overall">—%</strong>
         </div>
 
-        <div class="health-bars" id="health-bars"></div>
+        <div class="health-bars" id="traffic-bars"></div>
 
       </div>
 
@@ -323,7 +376,10 @@
   <div id="report-modal" class="modal-overlay" hidden>
     <div class="modal">
       <h3>New Citizen Report</h3>
-      <div id="report-pin-note" class="pin-note" hidden>📍 Location pinned from map click</div>
+      <div id="report-pin-note" class="pin-note" hidden>
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 21s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="9" r="2.3"/></svg>
+        Location pinned from map click
+      </div>
       <label>Category
         <select id="report-category">
           <option>Traffic</option>
