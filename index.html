@@ -23,28 +23,28 @@
 
     <nav>
       <a href="#" class="active" data-nav="dashboard">
-        <span>📊</span> Dashboard
+        <span>📊</span> <span class="nav-label">Dashboard</span>
       </a>
 
       <a href="#" data-nav="map">
-        <span>🗺️</span> City Map
+        <span>🗺️</span> <span class="nav-label">City Map</span>
       </a>
 
       <a href="#" data-nav="alerts">
-        <span>⚠️</span> Alerts
+        <span>⚠️</span> <span class="nav-label">Alerts</span>
         <b class="badge" id="alert-badge">0</b>
       </a>
 
       <a href="#" data-nav="infrastructure">
-        <span>🏗️</span> Infrastructure
+        <span>🏗️</span> <span class="nav-label">Infrastructure</span>
       </a>
 
       <a href="#" data-nav="reports">
-        <span>📝</span> Citizen Reports
+        <span>📝</span> <span class="nav-label">Citizen Reports</span>
       </a>
 
       <a href="#" data-nav="analytics">
-        <span>📈</span> Analytics
+        <span>📈</span> <span class="nav-label">Analytics</span>
       </a>
     </nav>
 
@@ -84,6 +84,7 @@
       </div>
 
       <div class="header-actions">
+        <button class="icon-btn" id="simulate-btn" title="Generate new mock city activity, written directly to Supabase">🎲 Simulate</button>
         <button class="icon-btn" id="refresh-btn" title="Refresh now">🔄</button>
         <button class="city-selector" id="city-selector">
           <span id="city-name">Hyderabad</span>
@@ -148,6 +149,7 @@
         </div>
 
         <p><span class="danger" id="delta-traffic">—</span> congestion today</p>
+        <svg class="sparkline" id="spark-traffic" viewBox="0 0 100 24" preserveAspectRatio="none"></svg>
       </div>
 
 
@@ -164,6 +166,7 @@
         </div>
 
         <p><span class="warning" id="stat-reports-unresolved">—</span> unresolved</p>
+        <svg class="sparkline" id="spark-reports_unresolved" viewBox="0 0 100 24" preserveAspectRatio="none"></svg>
       </div>
 
 
@@ -180,6 +183,7 @@
         </div>
 
         <p><span class="success" id="delta-water">—</span> system health</p>
+        <svg class="sparkline" id="spark-water_health" viewBox="0 0 100 24" preserveAspectRatio="none"></svg>
       </div>
 
 
@@ -196,6 +200,7 @@
         </div>
 
         <p><span class="success" id="health-label">—</span> overall condition</p>
+        <svg class="sparkline" id="spark-city_health" viewBox="0 0 100 24" preserveAspectRatio="none"></svg>
       </div>
 
     </section>
@@ -219,6 +224,7 @@
             <button data-filter="traffic">Traffic</button>
             <button data-filter="water">Water</button>
             <button data-filter="waste">Waste</button>
+            <button id="pin-report-btn" title="Click a spot on the map to file a report there">📍 Report Here</button>
           </div>
         </div>
 
@@ -258,7 +264,10 @@
             <p>What Civic Twin noticed</p>
           </div>
 
-          <span class="live">LIVE</span>
+          <div class="card-header-actions">
+            <button id="generate-insight-btn" class="ghost-btn" title="Ask Claude to analyze live trends">🧠 Generate</button>
+            <span class="live">LIVE</span>
+          </div>
         </div>
 
         <div id="insights-list"></div>
@@ -314,6 +323,7 @@
   <div id="report-modal" class="modal-overlay" hidden>
     <div class="modal">
       <h3>New Citizen Report</h3>
+      <div id="report-pin-note" class="pin-note" hidden>📍 Location pinned from map click</div>
       <label>Category
         <select id="report-category">
           <option>Traffic</option>
@@ -329,6 +339,12 @@
       <label>Description
         <textarea id="report-description" rows="3" placeholder="Describe the issue"></textarea>
       </label>
+      <label>Photo (optional)
+        <input type="file" id="report-photo" accept="image/png,image/jpeg,image/webp,image/gif">
+      </label>
+      <div id="report-photo-preview" class="photo-preview" hidden>
+        <img id="report-photo-preview-img" alt="Selected report photo preview">
+      </div>
       <div class="modal-actions">
         <button id="report-cancel" class="btn-secondary">Cancel</button>
         <button id="report-submit" class="btn-primary">Submit Report</button>
@@ -336,9 +352,21 @@
     </div>
   </div>
 
+  <!-- Alerts modal -->
+  <div id="alerts-modal" class="modal-overlay" hidden>
+    <div class="modal alerts-modal">
+      <h3>Active Alerts</h3>
+      <div id="alerts-list"></div>
+      <div class="modal-actions">
+        <button id="alerts-close" class="btn-secondary">Close</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast" class="toast" hidden></div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="app.js"></script>
+  <script src="config.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
