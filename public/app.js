@@ -323,18 +323,33 @@ function closeManageReportsModal() {
 
 // ---------- Analytics: real 24h charts from stat_history ----------
 const ANALYTICS_SERIES = [
-  { key: 'traffic', label: 'Traffic congestion', color: 'var(--red)', unit: '%' },
-  { key: 'waste_management', label: 'Waste management score', color: 'var(--accent)', unit: '/100' },
-  { key: 'reports_unresolved', label: 'Unresolved citizen reports', color: 'var(--blue)', unit: '' },
+  { key: 'traffic', label: 'Traffic congestion', color: '#dc3545', unit: '%', lowerIsBetter: true },
+  { key: 'waste_management', label: 'Waste management score', color: '#d97a2b', unit: '/100', lowerIsBetter: false },
+  { key: 'reports_unresolved', label: 'Unresolved citizen reports', color: '#3b74e0', unit: '', lowerIsBetter: true },
 ];
 
-function drawChart(points, color, unit) {
-  if (points.length < 2) return '<div class="empty-state">Not enough history yet.</div>';
+function trendBadge(points, lowerIsBetter) {
+  if (points.length < 2) return '';
+  const first = points[0].value;
+  const last = points[points.length - 1].value;
+  const delta = last - first;
+  if (Math.abs(delta) < (Math.abs(first) * 0.01 || 0.1)) {
+    return '<span class="trend-badge trend-flat">flat</span>';
+  }
+  const rising = delta > 0;
+  const good = lowerIsBetter ? !rising : rising;
+  const arrow = rising ? '↑' : '↓';
+  const cls = good ? 'trend-down' : 'trend-up'; // reuses green/red tokens: trend-down = green (good), trend-up = red (bad)
+  return `<span class="trend-badge ${cls}">${arrow} ${Math.abs(delta).toFixed(1)} vs 24h ago</span>`;
+}
+
+function drawChart(key, points, color, unit) {
+  if (points.length < 2) return { svg: '<div class="empty-state">Not enough history yet — check back after a couple of syncs.</div>', footer: '' };
   const values = points.map((p) => p.value);
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min || 1;
-  const W = 600, H = 100, PAD = 4;
+  const W = 680, H = 120, PAD = 4;
   const coords = values.map((v, i) => {
     const x = PAD + (i / (values.length - 1)) * (W - PAD * 2);
     const y = PAD + (H - PAD * 2) - ((v - min) / range) * (H - PAD * 2);
@@ -344,19 +359,62 @@ function drawChart(points, color, unit) {
   const areaPath = `${linePath} L${coords[coords.length - 1][0].toFixed(1)},${H - PAD} L${coords[0][0].toFixed(1)},${H - PAD} Z`;
   const [lastX, lastY] = coords[coords.length - 1];
   const gridLines = [0.25, 0.5, 0.75].map((f) => `<line class="grid-line" x1="0" y1="${(H * f).toFixed(1)}" x2="${W}" y2="${(H * f).toFixed(1)}" />`).join('');
-  return `
-    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+  const svg = `
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" data-key="${key}">
       ${gridLines}
       <path d="${areaPath}" class="chart-area" fill="${color}" />
       <path d="${linePath}" class="chart-line" stroke="${color}" />
       <circle class="chart-end" cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" fill="${color}" />
+      <line class="chart-crosshair" data-role="crosshair" x1="0" y1="0" x2="0" y2="${H}" />
+      <circle class="chart-hover-dot" data-role="hover-dot" cx="0" cy="0" fill="${color}" />
     </svg>
-    <div style="display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted)">
+    <div class="chart-tooltip" data-role="tooltip"></div>
+  `;
+  const footer = `
+    <div class="chart-footer">
       <span>min ${min.toFixed(1)}${unit}</span>
       <span>current ${values[values.length - 1].toFixed(1)}${unit}</span>
       <span>max ${max.toFixed(1)}${unit}</span>
     </div>
   `;
+  return { svg, footer, coords, values, W, H };
+}
+
+function attachChartHover(panelEl, chart, unit, points) {
+  const svg = panelEl.querySelector('svg');
+  const tooltip = panelEl.querySelector('[data-role="tooltip"]');
+  const crosshair = panelEl.querySelector('[data-role="crosshair"]');
+  const dot = panelEl.querySelector('[data-role="hover-dot"]');
+  if (!svg || !chart.coords) return;
+
+  const move = (clientX) => {
+    const rect = svg.getBoundingClientRect();
+    const relX = clamp((clientX - rect.left) / rect.width, 0, 1) * chart.W;
+    let nearest = 0;
+    let best = Infinity;
+    chart.coords.forEach(([x], i) => {
+      const d = Math.abs(x - relX);
+      if (d < best) { best = d; nearest = i; }
+    });
+    const [px, py] = chart.coords[nearest];
+    crosshair.setAttribute('x1', px.toFixed(1));
+    crosshair.setAttribute('x2', px.toFixed(1));
+    crosshair.style.opacity = 1;
+    dot.setAttribute('cx', px.toFixed(1));
+    dot.setAttribute('cy', py.toFixed(1));
+    dot.style.opacity = 1;
+    const time = new Date(points[nearest].recorded_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    tooltip.textContent = `${time} · ${points[nearest].value.toFixed(1)}${unit}`;
+    tooltip.style.left = `${(px / chart.W) * 100}%`;
+    tooltip.style.opacity = 1;
+  };
+
+  svg.addEventListener('pointermove', (e) => move(e.clientX));
+  svg.addEventListener('pointerleave', () => {
+    crosshair.style.opacity = 0;
+    dot.style.opacity = 0;
+    tooltip.style.opacity = 0;
+  });
 }
 
 async function renderAnalyticsCharts() {
@@ -367,20 +425,52 @@ async function renderAnalyticsCharts() {
     supabase.from('stat_history').select('value, recorded_at').eq('key', s.key).gte('recorded_at', since).order('recorded_at', { ascending: true })
   ));
 
-  container.innerHTML = ANALYTICS_SERIES.map((s, i) => {
-    const points = results[i].data || [];
+  const pointsBySeries = ANALYTICS_SERIES.map((s, i) => results[i].data || []);
+
+  const summaryHtml = `
+    <div class="analytics-summary">
+      ${ANALYTICS_SERIES.map((s, i) => {
+        const points = pointsBySeries[i];
+        const current = points.length ? points[points.length - 1].value : null;
+        return `
+          <div class="analytics-summary-cell">
+            <div class="label">${escapeHtml(s.label)}</div>
+            <div class="value">${current !== null ? current.toFixed(1) + s.unit : '—'}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+
+  const panelsHtml = ANALYTICS_SERIES.map((s, i) => {
+    const points = pointsBySeries[i];
     const first = points[0] ? new Date(points[0].recorded_at) : null;
     const last = points[points.length - 1] ? new Date(points[points.length - 1].recorded_at) : null;
     const range = first && last
       ? `${first.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} → ${last.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
       : '';
+    const chart = drawChart(s.key, points, s.color, s.unit);
     return `
-      <div class="chart-panel">
-        <div class="chart-head"><strong>${escapeHtml(s.label)}</strong><span class="chart-range">${range}</span></div>
-        ${drawChart(points, s.color, s.unit)}
+      <div class="chart-panel" style="--panel-accent:${s.color}" data-key="${s.key}">
+        <div class="chart-head">
+          <div class="chart-head-left"><strong>${escapeHtml(s.label)}</strong>${trendBadge(points, s.lowerIsBetter)}</div>
+          <span class="chart-range">${range}</span>
+        </div>
+        <div class="chart-svg-wrap">${chart.svg}</div>
+        ${chart.footer}
       </div>
     `;
   }).join('');
+
+  container.innerHTML = summaryHtml + panelsHtml;
+
+  ANALYTICS_SERIES.forEach((s, i) => {
+    const points = pointsBySeries[i];
+    if (points.length < 2) return;
+    const panelEl = container.querySelector(`.chart-panel[data-key="${s.key}"]`);
+    const chart = drawChart(s.key, points, s.color, s.unit);
+    attachChartHover(panelEl, chart, s.unit, points);
+  });
 }
 
 function openAnalyticsModal() {

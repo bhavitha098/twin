@@ -178,11 +178,20 @@ create policy "anon insert insights" on insights for insert with check (true);
 drop policy if exists "anon simulate insert alerts" on alerts;
 create policy "anon simulate insert alerts" on alerts for insert with check (true);
 
+-- Two overlapping syncRealData() calls can both check "does this alert
+-- already exist" before either has inserted (a classic TOCTOU race) and
+-- both proceed to insert — this constraint makes the second insert fail
+-- instead of creating a duplicate. The app already ignores insert errors
+-- on this path, so no client-side change is needed.
+create unique index if not exists alerts_unique_unresolved_msg on alerts (message) where resolved = false;
+
 drop policy if exists "anon dismiss actions" on actions;
 create policy "anon dismiss actions" on actions for update using (true) with check (true);
 
 drop policy if exists "anon simulate insert actions" on actions;
 create policy "anon simulate insert actions" on actions for insert with check (true);
+
+create unique index if not exists actions_unique_open_title on actions (title) where dismissed = false;
 
 drop policy if exists "anon update report status" on reports;
 create policy "anon update report status" on reports for update using (true) with check (true);
@@ -284,16 +293,10 @@ begin
       ('Public Safety', 91),
       ('Transport', 68);
 
-    insert into actions (priority, title, detail) values
-      ('high', 'Deploy traffic management team', 'NH-65 congestion is rapidly increasing.'),
-      ('medium', 'Inspect Ward 18 drainage', 'Flood probability exceeds 70%.'),
-      ('low', 'Review waste collection route', 'Complaints increased this week.');
-
-    insert into alerts (severity, message) values
-      ('high', 'NH-65 congestion critical'),
-      ('medium', 'Flood risk rising in 3 zones'),
-      ('medium', 'Ward 18 waste complaints spiking'),
-      ('low', 'Water health check due');
+    -- No seed rows for actions/alerts: both are populated exclusively by
+    -- real threshold triggers in syncRealData() (real traffic %, rain
+    -- probability, waste reports, AQI). A fresh install starts with an
+    -- honest empty state instead of invented crises that never happened.
 
     -- Synthetic 24h backfill so trend charts have something to show on
     -- first load, instead of a flat line until the demo has been running

@@ -1443,23 +1443,99 @@ nav a.active .nav-icon {
 }
 
 .alerts-modal { width: 440px; }
-.analytics-modal { width: 640px; }
+.analytics-modal { width: 760px; max-width: 92vw; }
 
-.chart-panel { margin-top: 16px; }
+.analytics-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.analytics-summary-cell {
+  border: 1px solid var(--card-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--bg);
+}
+.analytics-summary-cell .label { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.analytics-summary-cell .value { font-size: 19px; font-weight: 800; margin-top: 3px; font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+.chart-panel {
+  margin-top: 14px;
+  padding: 16px 18px 12px;
+  border: 1px solid var(--card-border);
+  border-left: 3px solid var(--panel-accent, var(--accent));
+  border-radius: 12px;
+  background: var(--card);
+}
+.chart-panel:first-of-type { margin-top: 0; }
 .chart-panel .chart-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
+.chart-panel .chart-head-left { display: flex; align-items: center; gap: 8px; }
 .chart-panel .chart-head strong { font-size: 12.5px; }
-.chart-panel .chart-head .chart-range { font-size: 10.5px; color: var(--muted); font-family: "IBM Plex Mono", ui-monospace, monospace; }
-.chart-panel svg { width: 100%; height: 110px; display: block; }
+.chart-panel .chart-head .chart-range { font-size: 10px; color: var(--muted); font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+.trend-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  white-space: nowrap;
+}
+.trend-badge.trend-up { background: var(--red-soft); color: var(--red); }
+.trend-badge.trend-down { background: var(--green-soft); color: var(--green); }
+.trend-badge.trend-flat { background: var(--bg); color: var(--muted); border: 1px solid var(--card-border); }
+
+.chart-svg-wrap { position: relative; }
+.chart-panel svg { width: 100%; height: 120px; display: block; cursor: crosshair; }
 .chart-panel .grid-line { stroke: var(--border-soft); stroke-width: 1; }
-.chart-panel .chart-area { opacity: 0.12; }
+.chart-panel .chart-area { opacity: 0.14; transition: opacity 0.15s ease; }
 .chart-panel .chart-line { fill: none; stroke-width: 2; }
 .chart-panel .chart-end { r: 3; }
 .chart-panel .axis-label { font-size: 9px; fill: var(--faint); font-family: "IBM Plex Mono", ui-monospace, monospace; }
+.chart-panel .chart-crosshair {
+  stroke: var(--faint);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  opacity: 0;
+  pointer-events: none;
+}
+.chart-panel .chart-hover-dot {
+  r: 4;
+  stroke: var(--card);
+  stroke-width: 2;
+  opacity: 0;
+  pointer-events: none;
+}
+.chart-panel .chart-tooltip {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: var(--card);
+  font-size: 10px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.08s ease;
+  z-index: 5;
+}
+.chart-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9.5px;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  margin-top: 6px;
+}
 
 #alerts-list {
   max-height: 50vh;
