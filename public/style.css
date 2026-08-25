@@ -19,14 +19,14 @@
 }
 
 :root {
-  /* content area */
-  --bg: #f4f5f7;
-  --card: #ffffff;
-  --card-border: #e7e9ee;
-  --border-soft: #eef0f3;
-  --text: #14171f;
-  --muted: #6b7280;
-  --faint: #9aa1ac;
+  /* content area — dark navy (previous scheme) */
+  --bg: #07111f;
+  --card: #0e1b2e;
+  --card-border: #1c3049;
+  --border-soft: #16283c;
+  --text: #f2f7fc;
+  --muted: #8a9db3;
+  --faint: #5c7086;
 
   /* sidebar — deliberately stays dark regardless of content theme */
   --sb-bg: #0c1015;
@@ -38,24 +38,24 @@
   --sb-active-border: #234a30;
 
   /* accent + semantic */
-  --accent: #d97a2b;
-  --accent-soft: #d97a2b16;
-  --accent-line: #eecda3;
-  --blue: #3b74e0;
-  --blue-soft: #3b74e014;
-  --blue-line: #c3d6f7;
-  --teal: #0d8f80;
-  --teal-soft: #0d8f8014;
-  --teal-line: #b9e3dd;
-  --green: #16a34a;
-  --green-soft: #16a34a14;
-  --green-line: #bfe6cd;
-  --red: #dc3545;
-  --red-soft: #dc354514;
-  --red-line: #f3c3c8;
-  --orange: #d97706;
-  --orange-soft: #d9770614;
-  --orange-line: #f0d4a3;
+  --accent: #ffad4d;
+  --accent-soft: #ffad4d22;
+  --accent-line: #ffad4d55;
+  --blue: #4ca5ff;
+  --blue-soft: #4ca5ff22;
+  --blue-line: #4ca5ff55;
+  --teal: #38d9ff;
+  --teal-soft: #38d9ff22;
+  --teal-line: #38d9ff55;
+  --green: #36d991;
+  --green-soft: #36d99122;
+  --green-line: #36d99155;
+  --red: #ff5d69;
+  --red-soft: #ff5d6922;
+  --red-line: #ff5d6955;
+  --orange: #ffad4d;
+  --orange-soft: #ffad4d22;
+  --orange-line: #ffad4d55;
 }
 
 body {
@@ -951,7 +951,7 @@ nav a.active .nav-icon {
 
 .map-controls button.selected {
   background: var(--text);
-  color: white;
+  color: var(--card);
   border-color: var(--text);
   cursor: default;
 }
@@ -966,7 +966,7 @@ nav a.active .nav-icon {
   height: 350px;
   position: relative;
   overflow: hidden;
-  background: #e9edf1;
+  background: #0c1929;
 }
 
 #map.map.pin-mode { cursor: crosshair; }
@@ -1004,7 +1004,7 @@ nav a.active .nav-icon {
 .legend.green { background: var(--teal); }
 
 .leaflet-container {
-  background: #e9edf1;
+  background: #0c1929;
   font-family: "Inter", sans-serif;
 }
 
@@ -1627,7 +1627,7 @@ nav a.active .nav-icon {
   left: 50%;
   transform: translateX(-50%);
   background: var(--text);
-  color: white;
+  color: var(--card);
   padding: 11px 18px;
   border-radius: 10px;
   font-size: 11.5px;

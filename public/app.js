@@ -385,9 +385,9 @@ function closeManageReportsModal() {
 
 // ---------- Analytics: real 24h charts from stat_history ----------
 const ANALYTICS_SERIES = [
-  { key: 'traffic', label: 'Traffic congestion', color: '#dc3545', unit: '%', lowerIsBetter: true },
-  { key: 'waste_management', label: 'Waste management score', color: '#d97a2b', unit: '/100', lowerIsBetter: false },
-  { key: 'reports_unresolved', label: 'Unresolved citizen reports', color: '#3b74e0', unit: '', lowerIsBetter: true },
+  { key: 'traffic', label: 'Traffic congestion', color: '#ff5d69', unit: '%', lowerIsBetter: true },
+  { key: 'waste_management', label: 'Waste management score', color: '#ffad4d', unit: '/100', lowerIsBetter: false },
+  { key: 'reports_unresolved', label: 'Unresolved citizen reports', color: '#4ca5ff', unit: '', lowerIsBetter: true },
 ];
 
 function trendBadge(points, lowerIsBetter) {
@@ -552,7 +552,7 @@ function initMap() {
     attributionControl: false,
   }).setView([17.4239, 78.4738], 12);
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     subdomains: 'abcd',
     maxZoom: 19,
   }).addTo(state.map);
