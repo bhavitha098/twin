@@ -29,13 +29,13 @@
   --faint: #5c7086;
 
   /* sidebar — deliberately stays dark regardless of content theme */
-  --sb-bg: #0c1015;
+  --sb-bg: #091522;
   --sb-text: #d3d7e0;
-  --sb-muted: #6e7585;
-  --sb-border: #1d222b;
-  --sb-active-bg: #16241a;
-  --sb-active-text: #6fe3a0;
-  --sb-active-border: #234a30;
+  --sb-muted: #7e91a8;
+  --sb-border: #1a2d42;
+  --sb-active-bg: #4ca5ff22;
+  --sb-active-text: #4ca5ff;
+  --sb-active-border: #4ca5ff55;
 
   /* accent + semantic */
   --accent: #ffad4d;
@@ -111,14 +111,14 @@ body {
   place-items: center;
   flex-shrink: 0;
 
-  background: linear-gradient(135deg, var(--accent), #c2601c);
+  background: linear-gradient(135deg, var(--blue), #6a4de0);
   box-shadow: 0 0 0 1px #ffffff14 inset;
 }
 
 .logo-icon .icon {
   width: 19px;
   height: 19px;
-  color: #fff8ef;
+  color: #ffffff;
 }
 
 .logo h2 {
@@ -236,7 +236,7 @@ nav a.active .nav-icon {
 }
 
 .confidence-card {
-  background: #12161d;
+  background: #0c1c2c;
   border: 1px solid var(--sb-border);
   border-radius: 12px;
   padding: 14px 15px;
@@ -283,7 +283,7 @@ nav a.active .nav-icon {
   gap: 10px;
   padding: 12px;
   border-radius: 10px;
-  background: #12161d;
+  background: #0c1c2c;
   border: 1px solid var(--sb-border);
   margin-bottom: 10px;
 }
