@@ -680,7 +680,7 @@ nav a.active .nav-icon {
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 14px;
   margin-bottom: 22px;
 }
@@ -761,55 +761,6 @@ nav a.active .nav-icon {
 .danger { color: var(--red); }
 .warning { color: var(--accent); }
 .success { color: var(--teal); }
-
-
-/* AI chat quick-ask card */
-
-.ai-chat-card {
-  display: flex;
-  flex-direction: column;
-}
-
-.ai-chat-prompt {
-  color: var(--muted);
-  font-size: 11px;
-  margin: 0 0 12px;
-  line-height: 1.5;
-}
-
-.mini-chat {
-  display: flex;
-  gap: 6px;
-  margin-top: auto;
-}
-
-.mini-chat input {
-  flex: 1;
-  min-width: 0;
-  background: var(--bg);
-  border: 1px solid var(--card-border);
-  border-radius: 8px;
-  padding: 9px 10px;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 11px;
-  outline: none;
-}
-
-.mini-chat input:focus { border-color: var(--blue); }
-.mini-chat input::placeholder { color: var(--faint); }
-
-.mini-chat button {
-  background: linear-gradient(135deg, var(--blue), #6a4de0);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  width: 34px;
-  flex-shrink: 0;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-}
 
 
 /* =========================

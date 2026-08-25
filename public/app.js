@@ -1434,16 +1434,6 @@ function wireEvents() {
     btn.addEventListener('click', () => askAI(btn.dataset.q));
   });
 
-  const askFromMiniChat = () => {
-    const q = el('mini-ai-input').value.trim();
-    if (!q) return;
-    el('mini-ai-input').value = '';
-    document.querySelector('.ai-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    askAI(q);
-  };
-  el('mini-ai-ask-btn').addEventListener('click', askFromMiniChat);
-  el('mini-ai-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') askFromMiniChat(); });
-
   el('cmd-search').addEventListener('click', () => {
     document.querySelector('.ai-box').scrollIntoView({ behavior: 'smooth', block: 'start' });
     el('ai-input').focus();
